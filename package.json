@@ -1,0 +1,26 @@
+{
+  "name": "captain-hook",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "npm run build:live",
+    "build": "tsc -p .",
+    "build:live": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^10.12.18",
+    "@types/pg": "^7.4.11",
+    "nodemon": "^1.18.9",
+    "ts-node": "^7.0.1",
+    "typescript": "^3.2.2"
+  },
+  "dependencies": {
+    "bitcoin-core": "^2.0.0",
+    "hookedin-lib": "git+https://github.com/madeken/hookedin-lib.git",
+    "pg": "^7.7.1"
+  }
+}
