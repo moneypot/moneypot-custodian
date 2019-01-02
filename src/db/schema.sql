@@ -8,7 +8,7 @@ CREATE SCHEMA public;
 
 CREATE TABLE transactions(
   hash            text    PRIMARY KEY, -- hash of (source + claimable_outputs + defunding_outputs)
-  source_hash          text    NOT NULL UNIQUE, -- hash (can be a hookin-hash or a set of spent_coins)
+  source_hash     text    NOT NULL UNIQUE, -- hash (can be a hookin-hash or a set of spent_coins)
   acknowledgement text    NOT NULL,
   created         timestamptz NULL DEFAULT NOW() -- prunable
 );
@@ -18,8 +18,9 @@ CREATE TABLE transaction_inputs(
    coin_magnitude             smallint NOT NULL,
    existence_proof                text NOT NULL, -- unblinded signature
    spend_proof                    text NOT NULL, -- signature that signs the transactions_output_hash
-   transaction_hash               text     NULL REFERENCES transactions(hash), -- prunable..
+   transaction_hash               text     NULL REFERENCES transactions(hash) -- prunable..
 );
+CREATE INDEX transaction_inputs_transaction_hash_idx on transaction_inputs(transaction_hash);
 
 CREATE TABLE claimable_outputs(
   id                        bigserial         PRIMARY KEY, -- internal synthetic key to refer to it
@@ -75,10 +76,3 @@ CREATE TABLE claims(
   claim_blinded_signature     text        NULL, -- what we gave them in response
   created                     timestamptz NULL DEFAULT NOW()
 );
-
-
-
-
-
-CREATE INDEX spent_coins_transaction_hash_idx ON spent_coins(transaction_hash);
-

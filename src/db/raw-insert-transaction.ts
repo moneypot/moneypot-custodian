@@ -22,7 +22,7 @@ export default async function(client: pg.PoolClient, transaction: hi.Transaction
     const { rowCount } = await client.query(
     `INSERT INTO transactions(hash, source_hash, acknowledgement)
             VALUES($1, $2, $3)`,
-    [transactionHash, transaction.sourceHash(), transactionAck.toBech()]
+    [transactionHash, transaction.sourceHash().toBech(), transactionAck.toBech()]
     );
 
     assert.strictEqual(rowCount, 1);

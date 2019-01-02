@@ -63,8 +63,6 @@ const server = http.createServer(async (req, res) => {
 
     console.log(`<-- ${req.method} ${req.url} req=${reqCount} status=${res.statusCode} time=${end-start}ms`);
 
-    console.log('writing: ', r);
-
     res.end(r);
 });
 

@@ -10,7 +10,7 @@ export default async function(hookinHash: hi.Hash) {
   const res = await pool.query(`
     SELECT jsonb_build_object(
       'hash', transactions.hash,
-      'sourceHash', transactions.source,
+      'sourceHash', transactions.source_hash,
           'claimableOutputs', (
             SELECT jsonb_agg(jsonb_build_object(
                   'claimant', claimable_outputs.claimant,
