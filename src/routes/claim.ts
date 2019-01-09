@@ -2,8 +2,8 @@ import * as hi from 'hookedin-lib';
 
 import * as nonces from '../util/nonces';
 
-export async function claim(body: any) {
-  const claim = hi.Claim.fromPOD(body);
+export async function claim(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
+  const claim = hi.ClaimRequest.fromPOD(body);
 
   if (!claim.isAuthorized()) {
     throw new Error('unauthorized claim!');
@@ -21,11 +21,16 @@ export async function claim(body: any) {
 
   const claimHash = claim.hash();
 
-  const blindedExistenceProof = hi.blindSign(hi.Params.blindingCoinPrivateKeys[claim.coinMagnitude], nonce, claim.blindedOwner);
+  const blindedExistenceProof = hi.blindSign(
+    hi.Params.blindingCoinPrivateKeys[claim.magnitude],
+    nonce,
+    claim.blindedOwner);
 
-  const claimed = new hi.Claimed(claimHash, blindedExistenceProof);
+  const claimResponse = new hi.ClaimResponse(claimHash, blindedExistenceProof);
 
-  claimed.acknowledge(hi.Params.acknowledgementPrivateKey);
 
-  return claimed;
+  const ackd: hi.AcknowledgedClaimResponse = hi.Acknowledged.acknowledge(
+    claimResponse, hi.Params.acknowledgementPrivateKey);
+
+  return ackd.toPOD();
 }

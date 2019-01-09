@@ -3,15 +3,16 @@ import * as hi from 'hookedin-lib';
 
 import { withTransaction } from './util';
 
-import insertTransaction from "./raw-insert-transaction";
+import insertPrunedTransaction from "./insert-source-pruned-transfer";
 
-export default async function(transaction: hi.Transaction, depositAddress: string, amount: number, fee: number) {
-  assert(transaction.defundingOutput === undefined);
+export default async function(ackedTransfer: hi.AcknowledgedTransfer, depositAddress: string, amount: number, fee: number) {
   assert(Number.isInteger(amount) && amount > 0);
   assert(Number.isInteger(fee) && fee >= 0);
 
-  const hookin = transaction.source;
-  if (!(hookin instanceof hi.Hookin)) {
+  const transfer = ackedTransfer.contents;
+
+  const hookin = transfer.source;
+  if (!(hookin instanceof hi.TransactionHookin)) {
     throw new Error("assertion: function only works with hookin source");
   }
 
@@ -19,16 +20,16 @@ export default async function(transaction: hi.Transaction, depositAddress: strin
   try {
     await withTransaction(async function(client) {
 
-      await insertTransaction(client, transaction);
+      await insertPrunedTransaction(client, ackedTransfer);
 
       const res = await client.query(
         `
-            INSERT INTO hookins(hash, transaction_hash, txid, vout, credit_to, derive_index, tweak, deposit_address, amount, fee)
+            INSERT INTO transaction_hookins(hash, transfer_hash, txid, vout, credit_to, derive_index, tweak, deposit_address, amount, fee)
             VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)       
             `,
         [
           hookin.hash().toBech(),
-          transaction.hash().toBech(),
+          transfer.hash().toBech(),
           hi.Buffutils.toHex(hookin.txid),
           hookin.vout,
           hookin.creditTo.toBech(),

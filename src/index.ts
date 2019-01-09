@@ -3,6 +3,8 @@ import declare from "./routes/declare";
 import nonce from "./routes/nonce";
 import readJson from "./util/read-json";
 import { claim } from "./routes/claim";
+import submitTransaction from "./routes/submit-transfer";
+import spentCoin from "./routes/spent-coin";
 
 const hostname = "127.0.0.1";
 const port = 3030;
@@ -10,21 +12,27 @@ const port = 3030;
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
 
-    if (req.url === "/nonce") {
+    const url = req.url;
+    if (url === undefined) {
+        throw new Error("404: missing url");
+    }
+
+
+    if (url === "/nonce") {
         return nonce();
+    } else if (url.startsWith("/spent-coin/")) {
+        return spentCoin(url);
     }
 
     if (req.method === "POST") {
         const body = await readJson(req);
-        switch (req.url) {
+        switch (url) {
             case "/claim":
-                const claimed = await claim(body);
-                return claimed.toPOD();
+                return await claim(body);
             case "/declare":
-                const transaction = await declare(body);
-                return transaction.toPOD();
-            case "/submit-transaction":
-              //  await submitTransaction(body);
+                return await declare(body);
+            case "/submit-transfer":
+                return await submitTransaction(body);
         }
     }
 
@@ -43,6 +51,9 @@ const server = http.createServer(async (req, res) => {
     let r;
     try {
         const result = await runner(req, res);
+        if (result === undefined) {
+            res.statusCode = 404;
+        }
         r = JSON.stringify(result);
     } catch (err) {
         if (typeof err === "string") {

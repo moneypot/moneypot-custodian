@@ -1,17 +1,15 @@
 import assert from "assert";
 import * as hi from "hookedin-lib";
-import http from "http";
-import readJson from "../util/read-json";
-import dbLookupTransaction from "../db/lookup-transaction";
-import dbInsertHookinTransaction from "../db/insert-hookin-transaction";
+import * as lookupTransaction from "../db/lookup-transfer";
+import dbInsertHookinTransaction from "../db/insert-transaction-hookin-transfer";
 import * as rpcClient from "../rpc-client";
 import * as config from "../config";
 
-export default async function(json: any): Promise<hi.Transaction> {
+export default async function(json: any): Promise<hi.POD.Transfer & hi.POD.Acknowledged> {
 
-    const hookin = hi.Hookin.fromPOD(json);
+    const hookin = hi.TransactionHookin.fromPOD(json);
 
-    const foundTransaction = await dbLookupTransaction(hookin.hash());
+    const foundTransaction = await lookupTransaction.bySourceHash(hookin.hash());
     if (foundTransaction) {
       return foundTransaction;
     }
@@ -41,12 +39,14 @@ export default async function(json: any): Promise<hi.Transaction> {
     }
   
     // Ok, everything looks good.
-    const outputs = hi.ClaimableOutputSet.fromPayTo(hookin.creditTo, out.amount - fee);
+
+    const output = hi.TransferOutput.fromPayTo(hookin.creditTo, out.amount - fee);
   
-    const transaction = new hi.Transaction(hookin, outputs);
-    transaction.acknowledge(hi.Params.acknowledgementPrivateKey);
+    const transfer = new hi.Transfer(hookin, output);
+
+    const ackedTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(transfer, hi.Params.acknowledgementPrivateKey);
   
-    await dbInsertHookinTransaction(transaction, out.address, out.amount, fee);
+    await dbInsertHookinTransaction(ackedTransfer, out.address, out.amount, fee);
   
-    return transaction;
+    return ackedTransfer.toPOD();
 }
