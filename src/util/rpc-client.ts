@@ -78,4 +78,57 @@ export async function getConsolidationFeeRate() {
   return await getFeeRate(144, "ECONOMICAL");
 };
 
+export async function createTransaction(to: string, amount: number, feeRate: number) {
+
+  const inBtc = (amount / 1e8).toFixed(8);
+  const btcFeeRate = (feeRate * 4) / 1000; // convert to vByte than per 1000
+
+  const output = { [to]: inBtc };
+
+  console.log("Trying to send: ", output, " btc with feerate: ", btcFeeRate);
+
+  const rawTx = await client.createRawTransaction([], output);
+  if (typeof rawTx !== "string") {
+    throw new Error("expected rawTx from createRawTransaction to be a hex string");
+  }
+
+  console.log("raw tx is: ", rawTx, );
+
+  const res = await client.fundRawTransaction(rawTx, { feeRate: btcFeeRate });
+  if (typeof res !== "object") {
+    throw new Error("fund raw transaction result expected object");
+  }
+
+  const { hex, fee } = res;
+
+  if (typeof hex !== "string") {
+    throw new Error("expected transaction hex in string format");
+  }
+
+  if (typeof fee !== "number" || fee < 0) {
+    throw new Error("fee should be a number");
+  }
+
+  const feeInSats = Math.round(fee * 1e8);
+
+
+  console.log("Created a bitcoin transaction: ", hex, " with fee: ", fee);
+
+  const { txid } = await client.decodeRawTransaction(hex);
+  if (typeof txid !== "string" || txid.length === 0) {
+    throw new Error("expected txid to be a string");
+  }
+
+
+  return { txid, hex, fee: feeInSats };
+}
+
+export async function sendRawTransaction(txHex: string) {
+  const txHash = await client.sendRawTransaction(txHex);
+  if (typeof txHash !== "string" && txHash.length !== 64) {
+    throw new Error("expected txhash as a result of createRawTransaction, got " + txHash);
+  }
+}
+
+
 getBalance().then(b => console.log('Wallet balance: ', b));

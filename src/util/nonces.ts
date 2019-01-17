@@ -19,7 +19,7 @@ export function gen() {
   return pubkey;
 };
 
-// returns undefined if doesn't get the nonce, otherwise a PrivateKey
+// There's a 50% chance this function throws "RETRY_NONCE" to prevent a wagner attack
 export function pull(pubkey: string) {
 
   const privKey = nonceMap.get(pubkey);
@@ -30,7 +30,7 @@ export function pull(pubkey: string) {
 
   // Give a 50% chance of just failing this request...
   if (crypto.randomBytes(1).readUInt8(0) % 2 === 0) {
-    return undefined; // lolz sorry! Try again!
+    throw "RETRY_NONCE"; // lolz sorry! Try again!
   }
 
   return privKey;

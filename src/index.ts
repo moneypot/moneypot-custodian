@@ -1,9 +1,8 @@
 import http from "http";
-import declare from "./routes/declare";
 import nonce from "./routes/nonce";
 import readJson from "./util/read-json";
 import { claim } from "./routes/claim";
-import submitTransaction from "./routes/submit-transfer";
+import transfer from "./routes/transfer";
 import spentCoin from "./routes/spent-coin";
 
 const hostname = "127.0.0.1";
@@ -29,10 +28,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         switch (url) {
             case "/claim":
                 return await claim(body);
-            case "/declare":
-                return await declare(body);
-            case "/submit-transfer":
-                return await submitTransaction(body);
+            case "/transfer":
+                return await transfer(body);
         }
     }
 
@@ -58,7 +55,7 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
         if (typeof err === "string") {
             r = JSON.stringify(err);
-            res.statusCode = err === "NO_SUCH_NONCE" ? 503 : 400;
+            res.statusCode = err === "RETRY_NONCE" ? 503 : 400;
         } else {
             console.error("caught exception: ", err);
             res.statusCode = 500;

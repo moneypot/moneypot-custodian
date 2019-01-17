@@ -6,14 +6,15 @@ export const pool = new Pool({
 });
 
 
-export async function withTransaction(f: (client: PoolClient) => Promise<any>) {
+export async function withTransaction<T>(f: (client: PoolClient) => Promise<T>): Promise<T> {
 
     const client = await pool.connect();
 
     try {
         await client.query('BEGIN');
-        await f(client);
+        const r = await f(client);
         await client.query('COMMIT');
+        return r;
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;

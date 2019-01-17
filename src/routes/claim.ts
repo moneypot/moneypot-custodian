@@ -1,6 +1,8 @@
 import * as hi from 'hookedin-lib';
 
 import * as nonces from '../util/nonces';
+import dbClaimCoin from '../db/claim-coin';
+import lookupClaimCoinResponse from '../db/lookup-claim-coin-response';
 
 export async function claim(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
   const claim = hi.ClaimRequest.fromPOD(body);
@@ -10,27 +12,25 @@ export async function claim(body: any): Promise<hi.POD.Acknowledged & hi.POD.Cla
   }
 
   const blindNonce = body['blindNonce'];
-  if (!blindNonce) {
+  if (!blindNonce || typeof blindNonce !== 'string') {
       throw new Error("missing blindNonce");
   }
 
   const nonce = nonces.pull(blindNonce);
-  if (!nonce) {
-      throw "NO_SUCH_NONCE";
+
+  // TODO: this is kinda silly... if they retried they would have a diff nonce??
+  if (nonce === undefined) { // If we don't have the nonce, maybe they're searching for a historic entry
+    const ackResponse = await lookupClaimCoinResponse(claim.hash());
+    if (ackResponse === undefined) {
+      throw new Error("could not find");
+    }
+    return ackResponse.toPOD();
   }
 
-  const claimHash = claim.hash();
+  const response = await dbClaimCoin(claim, nonce);
+  if (response === undefined) {
+    throw "COULD_NOT_FIND_UNCLAIMED_COIN";
+  }
 
-  const blindedExistenceProof = hi.blindSign(
-    hi.Params.blindingCoinPrivateKeys[claim.magnitude],
-    nonce,
-    claim.blindedOwner);
-
-  const claimResponse = new hi.ClaimResponse(claimHash, blindedExistenceProof);
-
-
-  const ackd: hi.AcknowledgedClaimResponse = hi.Acknowledged.acknowledge(
-    claimResponse, hi.Params.acknowledgementPrivateKey);
-
-  return ackd.toPOD();
+  return response.toPOD();
 }
