@@ -6,10 +6,10 @@ import lookupClaimCoinResponse from '../db/lookup-claim-coin-response';
 
 export async function claim(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
   const claim = hi.ClaimRequest.fromPOD(body);
-
-  if (!claim.isAuthorized()) {
-    throw new Error('unauthorized claim!');
+  if (claim instanceof Error) {
+    throw claim;
   }
+
 
   const blindNonce = body['blindNonce'];
   if (!blindNonce || typeof blindNonce !== 'string') {

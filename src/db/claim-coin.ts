@@ -16,7 +16,7 @@ export default async function(
                  AND NOT EXISTS(SELECT 1 FROM claims WHERE claimable_coins.id = claims.claimable_coins_id)
                 FOR UPDATE
                 LIMIT 1
-            `, [claimRequest.claimant.toBech(), claimRequest.magnitude]);
+            `, [claimRequest.coin.claimant.toBech(), claimRequest.coin.magnitude]);
 
             if (res.rows.length === 0) {
                 return undefined;
@@ -29,7 +29,7 @@ export default async function(
 
 
             const blindedExistenceProof = hi.blindSign(
-                hi.Params.blindingCoinPrivateKeys[claimRequest.magnitude],
+                hi.Params.blindingCoinPrivateKeys[claimRequest.coin.magnitude],
                 secretNonce,
                 claimRequest.blindedOwner);
 
@@ -43,7 +43,7 @@ export default async function(
             `, [
                 claimableCoinsId,
                 claimRequestHash.toBech(),
-                claimRequest.blindNonce.toBech(),
+                claimRequest.blindingNonce.toBech(),
                 claimRequest.blindedOwner.toBech(),
                 claimRequest.authorization.toBech(),
                 claimResponse.blindedExistenceProof.toBech(),

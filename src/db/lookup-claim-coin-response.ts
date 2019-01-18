@@ -19,11 +19,15 @@ export default async function(claimRequestHash: hi.Hash) {
     const row = dupeRes.rows[0];
 
 
+
+
     const claimant = hi.PublicKey.fromBech(row['claimant']);
     const magnitude = row['magnitude'];
     if (!hi.POD.isMagnitude(magnitude)) {
         throw new Error("assertion: found incorrect magnitude");
     }
+
+    const claimableCoin = new hi.ClaimableCoin(claimant, magnitude);
 
     const blindNonce = hi.PublicKey.fromBech(row['request_blind_nonce']);
 
@@ -33,7 +37,7 @@ export default async function(claimRequestHash: hi.Hash) {
 
 
 
-    const claimRequest = new hi.ClaimRequest(claimant, magnitude, blindNonce, blindedOwner, authorization);
+    const claimRequest = new hi.ClaimRequest(claimableCoin, blindNonce, blindedOwner, authorization);
 
     
     const blindedExistenceProof = hi.BlindedSignature.fromBech(row['response_blinded_existence_proof']);

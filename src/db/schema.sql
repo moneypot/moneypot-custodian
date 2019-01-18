@@ -25,12 +25,12 @@ CREATE INDEX spent_coins_transfer_hash_idx on spent_coins(transfer_hash);
 CREATE TABLE claimable_coins(
   id                        bigserial         PRIMARY KEY,
   transfer_hash             text                  NULL REFERENCES transfers(hash), -- DEBUG_ONLY
-  claimant                  text              NOT NULL, -- can be dupes, but highly discouraged
+  claimant                  text              NOT NULL,
   magnitude                 smallint          NOT NULL           
 );
 
 CREATE INDEX claimable_coins_transfer_hash_idx ON claimable_coins(transfer_hash);
-CREATE INDEX claimable_coins_claimant_idx ON claimable_coins(claimant, magnitude);
+CREATE UNIQUE INDEX claimable_coins_claimant_idx ON claimable_coins(claimant);
 
 
 CREATE TABLE claims(
