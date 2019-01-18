@@ -29,7 +29,7 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
             case "/claim":
                 return await claim(body);
             case "/transfer":
-                return await transfer(body);
+                return (await transfer(body)).toBech();
         }
     }
 

@@ -7,7 +7,7 @@ import * as rpcClient from "../util/rpc-client";
 import * as dbTransfer from "../db/transfer";
 import { withTransaction, pool } from "../db/util";
 
-export default async function(body: any) {
+export default async function(body: any): Promise<hi.Signature> {
 
     const transfer = hi.Transfer.fromPOD(body);
     if (transfer instanceof Error) {
@@ -98,13 +98,9 @@ export default async function(body: any) {
         } else {
             throw new Error("unreachable! unexpected output " +  output);
         }
-        
-
-
-
-
+    
     })
 
 
-    return ackTransfer.toPOD();
+    return ackTransfer.acknowledgement;
 }
