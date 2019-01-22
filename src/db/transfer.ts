@@ -10,14 +10,21 @@ export async function insertTransfer(client: pg.PoolClient,
     outputHash: hi.Hash,
     acknowledgement: hi.Signature) {
 
+        let res;
+        try {
+            res = await client.query(
+                `INSERT INTO transfers(hash, source_hash, output_hash, acknowledgement)
+                        VALUES($1, $2, $3, $4)`,
+                [transferHash, sourceHash.toBech(), outputHash.toBech(), acknowledgement.toBech()]
+                );
+        } catch (err) {
+            if (err.code === "23505" && err.constraint === "transfers_pkey") {
+                return "TRANSFER_ALREADY_EXISTS";
+            }
+            throw err;
+        }
 
-    const { rowCount } = await client.query(
-    `INSERT INTO transfers(hash, source_hash, output_hash, acknowledgement)
-            VALUES($1, $2, $3, $4)`,
-    [transferHash, sourceHash.toBech(), outputHash.toBech(), acknowledgement.toBech()]
-    );
-
-    assert.strictEqual(rowCount, 1);
+        assert.strictEqual(res.rowCount, 1);
 
 }
 
@@ -25,11 +32,15 @@ export async function insertClaimableCoins(client: pg.PoolClient, transferHash: 
 
     // TODO: optimize this into a single query ... lol
     for (const coin of coins) {
+        console.log("Inserting claimable coin: ",  [coin.claimant.toBech(), coin.magnitude, transferHash]);
+
         const { rowCount } = await client.query(
-            `INSERT INTO claimable_coins(transfer_hash, claimant, magnitude)
+            `INSERT INTO claimable_coins(claimant, magnitude, transfer_hash)
              VALUES($1, $2, $3)`,
-            [transferHash, coin.claimant.toBech(), coin.magnitude]
+            [coin.claimant.toBech(), coin.magnitude, transferHash]
         );
+        console.log("Finished. inserting claimable coin: ", coin.claimant.toBech());
+
 
         assert.strictEqual(rowCount, 1);
     }
@@ -37,7 +48,6 @@ export async function insertClaimableCoins(client: pg.PoolClient, transferHash: 
 
 
 export async function insertSpentCoins(client: pg.PoolClient, transferHash: string, coins: hi.SpentCoinSet) {
-
 
     for (let i = 0; i < coins.length; i++) {
         const coin = coins.get(i);
@@ -63,24 +73,34 @@ export async function insertTransactionHookin(client: pg.PoolClient, transferHas
 
     const depositAddress = hi.Params.fundingPublicKey.tweak(hookin.tweak.toPublicKey()).toBitcoinAddress(true);
 
-    await client.query(
-        `
-            INSERT INTO transaction_hookins(hash, transfer_hash, spend_authorization, txid, vout, credit_to, derive_index, tweak, deposit_address, amount)
-            VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)       
-            `,
-        [
-          hookin.hash().toBech(),
-          transferHash,
-          shookin.spendAuthorization.toBech(),
-          hi.Buffutils.toHex(hookin.txid),
-          hookin.vout,
-          hookin.creditTo.toBech(),
-          hookin.deriveIndex,
-          hookin.tweak.toBech(),
-          depositAddress,
-          hookin.amount
-        ]
-      );
+    try {
+        await client.query(
+            `
+                INSERT INTO transaction_hookins(hash, transfer_hash, spend_authorization, txid, vout, credit_to, derive_index, tweak, deposit_address, amount)
+                VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)       
+                `,
+            [
+              hookin.hash().toBech(),
+              transferHash,
+              shookin.spendAuthorization.toBech(),
+              hi.Buffutils.toHex(hookin.txid),
+              hookin.vout,
+              hookin.creditTo.toBech(),
+              hookin.deriveIndex,
+              hookin.tweak.toBech(),
+              depositAddress,
+              hookin.amount
+            ]
+          );
+    } catch (err) {
+        if (err.code === "23505" && err.constraint === "transaction_hookins_pkey") {
+            throw "HOOKIN_ALREADY_EXISTS";
+        }
+
+
+        throw err
+    }
+
 }
 
 type TxInfo = { txid: string, hex: string, fee: number }

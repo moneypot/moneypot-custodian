@@ -1,43 +1,36 @@
+import * as assert from "assert";
 import * as hi from "hookedin-lib"
 import { pool } from "./util";
 
 
-export default async function(claimRequestHash: hi.Hash) {
+// possibly throws 'NO_SUCH_COIN' or 'WRONG_MAGNITUDE' if claimant/magnitude doesnt exist
+// if the coin hasn't been claimed, returns undefined  otherwise the AcknowledgedClaimResponse
+export default async function(coin: hi.ClaimableCoin): Promise<hi.AcknowledgedClaimResponse | undefined> {
     
-    const dupeRes = await pool.query(`
-        SELECT 
-            claimant, magnitude, request_blind_nonce, request_blinded_owner, request_authorization
+    const searchRes = await pool.query(`SELECT magnitude,
+        request_blinding_nonce, request_blinded_owner, request_authorization,
         response_blinded_existence_proof, response_acknowledgement
-        FROM claims JOIN claimable_coins ON claims.claimable_coins_id = claimable_coins.id
-        WHERE claims.request_hash = $1
-    `, [claimRequestHash.toBech()]);
+        FROM claimable_coins WHERE claimant = $1`, [coin.claimant.toBech()]);
 
-    if (dupeRes.rows.length === 0) {
+    if (searchRes.rows.length === 0) {
+        throw "NO_SUCH_COIN";
+    }
+    assert.strictEqual(searchRes.rows.length, 1);
+    const row = searchRes.rows[0];
+
+    if (row.magnitude !== coin.magnitude) {
+        throw "WRONG_MAGNITUDE";
+    }
+
+    if (!row['request_blinding_nonce']) {
         return undefined;
     }
 
-    const row = dupeRes.rows[0];
-
-
-
-
-    const claimant = hi.PublicKey.fromBech(row['claimant']);
-    const magnitude = row['magnitude'];
-    if (!hi.POD.isMagnitude(magnitude)) {
-        throw new Error("assertion: found incorrect magnitude");
-    }
-
-    const claimableCoin = new hi.ClaimableCoin(claimant, magnitude);
-
-    const blindNonce = hi.PublicKey.fromBech(row['request_blind_nonce']);
-
-    const blindedOwner = hi.BlindedMessage.fromBech(row['blinded_owner']);
-
+    const blindNonce = hi.PublicKey.fromBech(row['request_blinding_nonce']);
+    const blindedOwner = hi.BlindedMessage.fromBech(row['request_blinded_owner']);
     const authorization = hi.Signature.fromBech(row['request_authorization']);
 
-
-
-    const claimRequest = new hi.ClaimRequest(claimableCoin, blindNonce, blindedOwner, authorization);
+    const claimRequest = new hi.ClaimRequest(coin, blindNonce, blindedOwner, authorization);
 
     
     const blindedExistenceProof = hi.BlindedSignature.fromBech(row['response_blinded_existence_proof']);

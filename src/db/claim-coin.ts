@@ -1,61 +1,49 @@
 import * as hi from "hookedin-lib";
 import assert from "assert";
-import { pool, withTransaction } from "./util";
+import { pool } from "./util";
+import lookupClaimCoinResponse from "./lookup-claim-coin-response";
 
 export default async function(
     claimRequest: hi.ClaimRequest,
     secretNonce: hi.PrivateKey
-    ): Promise<hi.AcknowledgedClaimResponse | undefined> {
+    ): Promise<hi.AcknowledgedClaimResponse> {
+
+        const blindedExistenceProof = hi.blindSign(
+            hi.Params.blindingCoinPrivateKeys[claimRequest.coin.magnitude],
+            secretNonce,
+            claimRequest.blindedOwner);
+
+        const claimResponse = new hi.ClaimResponse(claimRequest, blindedExistenceProof);
+        const ackClaimResponse: hi.AcknowledgedClaimResponse = hi.Acknowledged.acknowledge(claimResponse, hi.Params.acknowledgementPrivateKey);
 
 
-        return await withTransaction(async (client) => {
+        // The  COALESCE's here do nothing, but just a extra layer of safety to stop overwriting an entry
+        const updateRes = await pool.query(`UPDATE claimable_coins
+            SET request_blinding_nonce = COALESCE(request_blinding_nonce, $1),
+                request_blinded_owner = COALESCE(request_blinded_owner, $2),
+                request_authorization = COALESCE(request_authorization, $3),
+                response_blinded_existence_proof = COALESCE(response_blinded_existence_proof, $4),
+                response_acknowledgement = COALESCE(response_acknowledgement, $5)
+            WHERE claimant = $6 AND magnitude = $7 AND request_blinding_nonce IS NULL
+        `, [
+            claimRequest.blindingNonce.toBech(),
+            claimRequest.blindedOwner.toBech(),
+            claimRequest.authorization.toBech(),
+            claimResponse.blindedExistenceProof.toBech(),
+            ackClaimResponse.acknowledgement.toBech(),
+            claimRequest.coin.claimant.toBech(),
+            claimRequest.coin.magnitude
+        ]);
 
-            const res = await client.query(`
-                SELECT id FROM claimable_coins
-                WHERE claimant = $1 AND magnitude = $2
-                 AND NOT EXISTS(SELECT 1 FROM claims WHERE claimable_coins.id = claims.claimable_coins_id)
-                FOR UPDATE
-                LIMIT 1
-            `, [claimRequest.coin.claimant.toBech(), claimRequest.coin.magnitude]);
-
-            if (res.rows.length === 0) {
-                return undefined;
+        // It's possible we were beaten to it, and this coin was race-claimed. So let's check again
+        if (updateRes.rowCount === 0) {
+            const resp = await lookupClaimCoinResponse(claimRequest.coin);
+            if (resp === undefined) {
+                throw new Error("something weird, couldnt update coin but couldnt find it either");
             }
+            return resp;
+        }
+        assert.strictEqual(updateRes.rowCount, 1);
 
-
-            const claimRequestHash = claimRequest.hash();
-
-            const claimableCoinsId = res.rows[0].id;
-
-
-            const blindedExistenceProof = hi.blindSign(
-                hi.Params.blindingCoinPrivateKeys[claimRequest.coin.magnitude],
-                secretNonce,
-                claimRequest.blindedOwner);
-
-            const claimResponse = new hi.ClaimResponse(claimRequest, blindedExistenceProof);
-            const ackClaimResponse: hi.AcknowledgedClaimResponse = hi.Acknowledged.acknowledge(claimResponse, hi.Params.acknowledgementPrivateKey);
-
-            const insertRes = await client.query(`INSERT INTO claims(claimable_coins_id,
-                request_hash, request_blind_nonce, request_blinded_owner, request_authorization,
-                response_blinded_existence_proof, response_acknowledgement)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-            `, [
-                claimableCoinsId,
-                claimRequestHash.toBech(),
-                claimRequest.blindingNonce.toBech(),
-                claimRequest.blindedOwner.toBech(),
-                claimRequest.authorization.toBech(),
-                claimResponse.blindedExistenceProof.toBech(),
-                ackClaimResponse.acknowledgement.toBech(),
-            ]);
-
-            assert.strictEqual(insertRes.rowCount, 1);
-
-            return ackClaimResponse;
-        
-    });
-
-
-
+        return ackClaimResponse;
 }

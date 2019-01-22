@@ -3,34 +3,29 @@ import * as hi from 'hookedin-lib';
 import * as nonces from '../util/nonces';
 import dbClaimCoin from '../db/claim-coin';
 import lookupClaimCoinResponse from '../db/lookup-claim-coin-response';
+import * as assert from 'assert';
 
 export async function claim(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
+
   const claim = hi.ClaimRequest.fromPOD(body);
   if (claim instanceof Error) {
     throw claim;
   }
 
+  console.log("Client trying to claim: ", claim.toPOD());
 
-  const blindNonce = body['blindNonce'];
-  if (!blindNonce || typeof blindNonce !== 'string') {
-      throw new Error("missing blindNonce");
+  // pre search if that coin was already claimed...
+  let resp = await lookupClaimCoinResponse(claim.coin);
+  if (resp !== undefined) {
+      return resp.toPOD(); // found it, already claimed!
   }
 
-  const nonce = nonces.pull(blindNonce);
 
-  // TODO: this is kinda silly... if they retried they would have a diff nonce??
-  if (nonce === undefined) { // If we don't have the nonce, maybe they're searching for a historic entry
-    const ackResponse = await lookupClaimCoinResponse(claim.hash());
-    if (ackResponse === undefined) {
-      throw new Error("could not find");
-    }
-    return ackResponse.toPOD();
+  const nonce = nonces.pull(claim.blindingNonce.toBech());
+  if (nonce === undefined) {
+    throw "COULD_NOT_FIND_NONCE";
   }
 
-  const response = await dbClaimCoin(claim, nonce);
-  if (response === undefined) {
-    throw "COULD_NOT_FIND_UNCLAIMED_COIN";
-  }
-
-  return response.toPOD();
+  resp = await dbClaimCoin(claim, nonce);
+  return resp.toPOD();
 }

@@ -9,6 +9,8 @@ import { withTransaction, pool } from "../db/util";
 
 export default async function(body: any): Promise<hi.Signature> {
 
+    console.log("Got transfer:" , body);
+
     const transfer = hi.Transfer.fromPOD(body);
     if (transfer instanceof Error) {
         throw transfer;
@@ -18,7 +20,6 @@ export default async function(body: any): Promise<hi.Signature> {
     const output = transfer.output;
 
 
-    const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(transfer, hi.Params.acknowledgementPrivateKey);
 
 
     const transferHash = transfer.hash().toBech();
@@ -79,9 +80,16 @@ export default async function(body: any): Promise<hi.Signature> {
         txRes = await rpcClient.createTransaction(output.bitcoinAddress, output.amount, feeRate);
     }
 
-    withTransaction(async (dbClient) => {
 
-        await dbTransfer.insertTransfer(dbClient, transferHash, source.hash(), output.hash(), ackTransfer.acknowledgement);
+    const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(transfer, hi.Params.acknowledgementPrivateKey);
+
+
+    await withTransaction(async (dbClient) => {
+
+        const insertRes = await dbTransfer.insertTransfer(dbClient, transferHash, source.hash(), output.hash(), ackTransfer.acknowledgement);
+        if (insertRes === "TRANSFER_ALREADY_EXISTS") {
+            return;
+        }
 
         if (source instanceof hi.SpentTransactionHookin) {
             await dbTransfer.insertTransactionHookin(dbClient, transferHash, source);
