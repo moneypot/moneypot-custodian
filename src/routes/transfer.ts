@@ -94,7 +94,12 @@ export default async function(body: any): Promise<hi.Signature> {
         if (source instanceof hi.SpentTransactionHookin) {
             await dbTransfer.insertTransactionHookin(dbClient, transferHash, source);
         } else if (source instanceof hi.SpentCoinSet) {
-            await dbTransfer.insertSpentCoins(dbClient, transferHash, source);
+            const spir = await dbTransfer.insertSpentCoins(dbClient, transferHash, source);
+            if (spir === "COIN_ALREADY_SPENT") {
+                throw spir;
+            } else {
+                const _: undefined = spir;
+            }
         } else {
             throw new Error("unreachable! unexpected source: " + source);
         }

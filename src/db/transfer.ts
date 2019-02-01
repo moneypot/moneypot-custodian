@@ -32,17 +32,21 @@ export async function insertClaimableCoins(client: pg.PoolClient, transferHash: 
 
     // TODO: optimize this into a single query ... lol
     for (const coin of coins) {
-        console.log("Inserting claimable coin: ",  [coin.claimant.toBech(), coin.magnitude, transferHash]);
+        let res;
+        try {
+            res = await client.query(
+                `INSERT INTO claimable_coins(claimant, magnitude, transfer_hash)
+                 VALUES($1, $2, $3)`,
+                [coin.claimant.toBech(), coin.magnitude, transferHash]
+            );
+        } catch (err) {
+            if (err.code === "23505" && err.constraint === "claimable_coins_pkey") {
+                throw "CLAIMABLE_COIN_ALREADY_EXISTS";
+            }
+            throw err;
+        }
 
-        const { rowCount } = await client.query(
-            `INSERT INTO claimable_coins(claimant, magnitude, transfer_hash)
-             VALUES($1, $2, $3)`,
-            [coin.claimant.toBech(), coin.magnitude, transferHash]
-        );
-        console.log("Finished. inserting claimable coin: ", coin.claimant.toBech());
-
-
-        assert.strictEqual(rowCount, 1);
+        assert.strictEqual(res.rowCount, 1)
     }
 };
 
@@ -50,18 +54,30 @@ export async function insertClaimableCoins(client: pg.PoolClient, transferHash: 
 export async function insertSpentCoins(client: pg.PoolClient, transferHash: string, coins: hi.SpentCoinSet) {
 
     for (let i = 0; i < coins.length; i++) {
+
         const coin = coins.get(i);
         const spendAuthorization = coins.spendAuthorization[i];
 
-        const res = await client.query(`INSERT INTO spent_coins(owner, transfer_hash, magnitude, existence_proof, spend_authorization)
-        VALUES($1, $2, $3, $4, $5)`,
-        [
-            coin.owner.toBech(),
-            transferHash,
-            coin.magnitude,
-            coin.existenceProof.toBech(),
-            spendAuthorization.toBech()
-        ]);
+        let res;
+        try {
+    
+            res = await client.query(`INSERT INTO spent_coins(owner, transfer_hash, magnitude, existence_proof, spend_authorization)
+            VALUES($1, $2, $3, $4, $5)`,
+            [
+                coin.owner.toBech(),
+                transferHash,
+                coin.magnitude,
+                coin.existenceProof.toBech(),
+                spendAuthorization.toBech()
+            ]);
+
+        } catch (err) {
+            if (err.code === "23505" && err.constraint === "spent_coins_pkey") {
+                console.log("[debug] tried to double spend coin: ", coin);
+                return "COIN_ALREADY_SPENT";
+            }
+            throw err;
+        }
 
         assert(res.rowCount === 1);
     }
