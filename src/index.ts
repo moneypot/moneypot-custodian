@@ -4,6 +4,7 @@ import readJson from "./util/read-json";
 import { claim } from "./routes/claim";
 import transfer from "./routes/transfer";
 import spentCoin from "./routes/spent-coin";
+import transactionHookin from "./routes/transaction-hookin";
 
 const hostname = "127.0.0.1";
 const port = 3030;
@@ -19,6 +20,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
 
     if (url === "/nonce") {
         return nonce();
+    } else if (url.startsWith("/transaction-hookin/")) {
+        return transactionHookin(url);
     } else if (url.startsWith("/spent-coin/")) {
         return spentCoin(url);
     }
@@ -32,8 +35,6 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
                 return (await transfer(body)).toBech();
         }
     }
-
-    throw new Error("404: unknown route")
 }
 
 let reqCounter = 0;
@@ -50,8 +51,10 @@ const server = http.createServer(async (req, res) => {
         const result = await runner(req, res);
         if (result === undefined) {
             res.statusCode = 404;
+            r = `"ROUTE_NOT_FOUND"`;
+        } else {
+            r = JSON.stringify(result);
         }
-        r = JSON.stringify(result);
     } catch (err) {
         if (typeof err === "string") {
             r = JSON.stringify(err);

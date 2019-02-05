@@ -110,7 +110,7 @@ export async function insertTransactionHookin(client: pg.PoolClient, transferHas
           );
     } catch (err) {
         if (err.code === "23505" && err.constraint === "transaction_hookins_pkey") {
-            throw "HOOKIN_ALREADY_EXISTS";
+            throw "TRANSACTION_HOOKIN_ALREADY_EXISTS";
         }
 
 

@@ -44,7 +44,7 @@ CREATE INDEX claimable_coins_transfer_hash_idx ON claimable_coins(transfer_hash)
 CREATE TABLE transaction_hookins(
   hash                        text        PRIMARY KEY,
   transfer_hash               text        NOT NULL REFERENCES transfers(hash),
-  spend_authorization         text            NULL,
+  spend_authorization         text        NOT NULL,
   -- everything below is prunable data (after it's been spent...)
   txid                        text            NULL,
   vout                        int             NULL,
