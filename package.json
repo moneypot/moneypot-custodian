@@ -19,8 +19,7 @@
     "typescript": "^3.2.2"
   },
   "dependencies": {
-    "bitcoin-core": "^2.0.0",
-    "hookedin-lib": "git+https://github.com/madeken/hookedin-lib.git",
+    "hookedin-lib": "git+https://github.com/hookedin/hookedin-lib.git",
     "pg": "^7.7.1"
   }
 }

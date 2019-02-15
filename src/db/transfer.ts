@@ -6,16 +6,16 @@ import pg from 'pg';
 
 export async function insertTransfer(client: pg.PoolClient,
     transferHash: string,
-    sourceHash: hi.Hash,
+    inputHash: hi.Hash,
     outputHash: hi.Hash,
     acknowledgement: hi.Signature) {
 
         let res;
         try {
             res = await client.query(
-                `INSERT INTO transfers(hash, source_hash, output_hash, acknowledgement)
+                `INSERT INTO transfers(hash, input_hash, output_hash, acknowledgement)
                         VALUES($1, $2, $3, $4)`,
-                [transferHash, sourceHash.toBech(), outputHash.toBech(), acknowledgement.toBech()]
+                [transferHash, inputHash.toBech(), outputHash.toBech(), acknowledgement.toBech()]
                 );
         } catch (err) {
             if (err.code === "23505" && err.constraint === "transfers_pkey") {
@@ -134,7 +134,7 @@ export async function insertTransactionHookout(client: pg.PoolClient, transferHa
            INSERT INTO transaction_hookouts(hash, transfer_hash, amount, bitcoin_address, nonce, immediate, txid)
            VALUES($1, $2, $3, $4, $5, $6, $7)
         `, [
-            hookout.hash().toBech,
+            hookout.hash().toBech(),
             transferHash,
             hookout.amount,
             hookout.bitcoinAddress,

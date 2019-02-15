@@ -2,9 +2,12 @@ import http from "http";
 import nonce from "./routes/nonce";
 import readJson from "./util/read-json";
 import { claim } from "./routes/claim";
-import transfer from "./routes/transfer";
 import spentCoin from "./routes/spent-coin";
-import transactionHookin from "./routes/transaction-hookin";
+import routeHookin from "./routes/hookin";
+import transferC2C from "./routes/transfer/c2c";
+import transferC2H from "./routes/transfer/c2h";
+import transferH2C from "./routes/transfer/h2c";
+
 
 const hostname = "127.0.0.1";
 const port = 3030;
@@ -17,11 +20,10 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         throw new Error("404: missing url");
     }
 
-
     if (url === "/nonce") {
         return nonce();
-    } else if (url.startsWith("/transaction-hookin/")) {
-        return transactionHookin(url);
+    } else if (url.startsWith("/hookin/")) {
+        return routeHookin(url);
     } else if (url.startsWith("/spent-coin/")) {
         return spentCoin(url);
     }
@@ -31,11 +33,35 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         switch (url) {
             case "/claim":
                 return await claim(body);
-            case "/transfer":
-                return (await transfer(body)).toBech();
+            case "/transfer/ctc":
+                return await transferC2C(body);
+            case "/transfer/c2h":
+                return await transferC2H(body);
+            case "/transfer/h2c":
+                return await transferH2C(body);
         }
     }
 }
+
+
+async function constTime<T>(ms: number, f: () => Promise<T>): Promise<T> {
+    const startTime = Date.now();
+    const result = await f();
+    const endTime = Date.now();
+
+    const duration = endTime - startTime;
+    let sleep = 0;
+
+    if (duration > ms) {
+        console.log("constTime'd function took ", duration, "ms, but should've finished under ", ms);
+    } else {
+        sleep = ms - duration;
+    }
+    await new Promise((resolve) => setTimeout(resolve, sleep));
+    return result
+}
+
+
 
 let reqCounter = 0;
 

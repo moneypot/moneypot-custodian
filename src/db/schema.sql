@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE transfers(
   hash            text        PRIMARY KEY,
-  source_hash     text        NOT NULL, -- hash (can be a transaction_hookins(hash), a lightning_hookins(hash) or a set of spent_coins)
+  input_hash     text        NOT NULL, -- hash (can be a transaction_hookins(hash), a lightning_hookins(hash) or a set of spent_coins)
   output_hash     text        NOT NULL,
   acknowledgement text        NOT NULL,
   created         timestamptz     NULL DEFAULT NOW() -- prunable
@@ -41,7 +41,7 @@ CREATE TABLE claimable_coins(
 CREATE INDEX claimable_coins_transfer_hash_idx ON claimable_coins(transfer_hash);
 
 
-CREATE TABLE transaction_hookins(
+CREATE TABLE hookins(
   hash                        text        PRIMARY KEY,
   transfer_hash               text        NOT NULL REFERENCES transfers(hash),
   spend_authorization         text        NOT NULL,
@@ -54,7 +54,7 @@ CREATE TABLE transaction_hookins(
   tweak                       text            NULL, -- debug info
   deposit_address             text            NULL -- debug info
 );
-CREATE UNIQUE INDEX transaction_hookins_transfer_hash_idx ON transaction_hookins(transfer_hash);
+CREATE UNIQUE INDEX hookins_transfer_hash_idx ON hookins(transfer_hash);
 
 -- SENDING means it's in progress (or locked up)
 -- SENT means it's totally done and pushed onto the network
@@ -69,7 +69,7 @@ CREATE TABLE bitcoin_transactions(
 );
 
 -- interestingly once a hookout is safely sent, it's *completely* prunable (e.g. we can just delete it!)
-CREATE TABLE transaction_hookouts(
+CREATE TABLE hookouts(
   hash                           text     PRIMARY KEY,
   transfer_hash                  text        NULL REFERENCES transfers(hash),  -- DEBUG_ONLY
   amount                         bigint   NOT NULL,
@@ -79,8 +79,8 @@ CREATE TABLE transaction_hookouts(
   txid                           text         NULL REFERENCES bitcoin_transactions(txid)
 );
 
-CREATE INDEX transaction_hookouts_transfer_hash_idx ON transaction_hookouts(transfer_hash);
-CREATE INDEX transaction_hookouts_transfer_txid_idx ON transaction_hookouts(txid);
+CREATE INDEX hookouts_transfer_hash_idx ON hookouts(transfer_hash);
+CREATE INDEX hookouts_transfer_txid_idx ON hookouts(txid);
 
 
 
@@ -89,7 +89,7 @@ CREATE INDEX transaction_hookouts_transfer_txid_idx ON transaction_hookouts(txid
 --     AS $$
 --       SELECT jsonb_build_object(
 --       'hash', t.hash,
---       'sourceHash', t.source_hash,
+--       'inputHash', t.input_hash,
 --       'sourceInputs', (
 --         SELECT jsonb_agg(jsonb_build_object(
 --           'owner', transaction_inputs.owner,

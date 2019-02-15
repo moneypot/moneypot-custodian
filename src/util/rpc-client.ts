@@ -1,23 +1,24 @@
 import assert from 'assert';
 import * as hi from 'hookedin-lib';
 
-// @ts-ignore
-import BitcoinClient from 'bitcoin-core';
-
-const config = {
-  username: 'testnetdev',
-  password: 'l5JwLwtAXnaF',
-  host: '127.0.0.1',
-  port: '18332',
-  network: 'testnet',
-  version: '0.17.0'
-};
-
-let client = new BitcoinClient(config);
+import JSONRpcClient from "./jsonrpc";
 
 
-export async function getTxOut(txid: Uint8Array, vout: number) {
+//let jsonClient = new JSONRpcClient('127.0.0.1', 18332, 'testnetdev', 'l5JwLwtAXnaF');
+let jsonClient = new JSONRpcClient('45.76.42.51', 18332, '7eb0be46532a36b1e7a2d86bac99b4d78c238fe470a3c0f86b113677e07a744b', 'beef54c52615f195fced6b89ee4677a2324b6b34d29d79e645546e09dab161f8');
+
+
+export async function getBalance(): Promise<number> {
+  const b: number = await jsonClient.call("getbalance", {});
+  return Math.round(b * 1e8);
+}
+
+
+
+export async function getTxOut(transactionID: Uint8Array, vout: number) {
   assert(Number.isSafeInteger(vout) && vout >= 0);
+
+  const txid = hi.Buffutils.toHex(transactionID);
 
   // Instead of calling   getTxOut directly, we are going to go through  getRawTransaction
   // the reason for this is that it works with txindex=1 for when our wallet is annoying and
@@ -25,11 +26,9 @@ export async function getTxOut(txid: Uint8Array, vout: number) {
 
   // Note this technically uses deprecated behavior (getRawTransaction is supposed to stop working with unspent tx's eventually)
 
-  const txidHex = hi.Buffutils.toHex(txid);
+    const transaction = await jsonClient.call("getrawtransaction", { txid, verbose: true });
 
-  const transaction = await client.getRawTransaction(txidHex, true);
-
-  assert(transaction.txid === txidHex);
+  assert(transaction.txid === txid);
 
   const output = transaction.vout[vout];
   if (!output) {
@@ -49,29 +48,28 @@ export async function getTxOut(txid: Uint8Array, vout: number) {
   };
 };
 
-export async function getBalance() {
-  const b = await client.getBalance();
-  return Math.round(b * 1e8);
-};
 
-export async function importPrivateKey(privkey: hi.PrivateKey) {
-  await client.importPrivKey(privkey.toWif(), '', false);
+
+export async function importPrivateKey(privkey: string) {
+   await jsonClient.call("importprivkey", { privkey, rescan: false });
 };
 
 
-export async function importPrunedFunds(txid: Uint8Array) {
-  const txidHex = hi.Buffutils.toHex(txid);
+export async function importPrunedFunds(transactionId: Uint8Array) {
+  const txid = hi.Buffutils.toHex(transactionId);
 
-  const transaction = await client.getRawTransaction(txidHex, false);
-  const proof = await client.getTxOutProof([txidHex]);
+  const rawtransaction = await jsonClient.call("getrawtransaction", { txid, verbose: false });
+  const txoutproof = await jsonClient.call("gettxoutproof", { txids: [txid] });
 
-  await client.importPrunedFunds(transaction, proof);
+  await jsonClient.call("importprunedfunds", { rawtransaction, txoutproof });
 };
 
 
-export async function getFeeRate(blocks: number, mode: "ECONOMICAL" | "CONSERVATIVE") {
-  const res = await client.estimateSmartFee(blocks, mode);
-  return (res['feerate'] * 1e5) / 4;
+export async function getFeeRate(conf_target: number, estimate_mode: "ECONOMICAL" | "CONSERVATIVE") {
+  const res = await jsonClient.call("estimatesmartfee", { conf_target, estimate_mode  });
+  const r = (res['feerate'] * 1e5) / 4;
+  assert(Number.isFinite(r) && r > 0);
+  return r;
 }
 
 export async function getConsolidationFeeRate() {
@@ -81,25 +79,22 @@ export async function getConsolidationFeeRate() {
 export async function createTransaction(to: string, amount: number, feeRate: number) {
 
   const inBtc = (amount / 1e8).toFixed(8);
-  const btcFeeRate = (feeRate * 4) / 1000; // convert to vByte than per 1000
+  feeRate = (feeRate * 4) / 1000; // convert to vByte than per 1000
 
-  const output = { [to]: inBtc };
+  const outputs = { [to]: inBtc };
 
-  console.log("Trying to send: ", output, " btc with feerate: ", btcFeeRate);
 
-  const rawTx = await client.createRawTransaction([], output);
+  const rawTx = await jsonClient.call("createrawtransaction", { inputs: [], outputs });
   if (typeof rawTx !== "string") {
     throw new Error("expected rawTx from createRawTransaction to be a hex string");
   }
 
-  console.log("raw tx is: ", rawTx, );
-
-  const res = await client.fundRawTransaction(rawTx, { feeRate: btcFeeRate });
+  const res = await jsonClient.call("fundrawtransaction", { hexstring: rawTx,  options: { feeRate } });
   if (typeof res !== "object") {
     throw new Error("fund raw transaction result expected object");
   }
 
-  const { hex, fee } = res;
+  let { hex, fee } = res;
 
   if (typeof hex !== "string") {
     throw new Error("expected transaction hex in string format");
@@ -111,10 +106,12 @@ export async function createTransaction(to: string, amount: number, feeRate: num
 
   const feeInSats = Math.round(fee * 1e8);
 
+  const signRes = await jsonClient.call("signrawtransactionwithwallet", { hexstring: hex });
+  assert.strictEqual(signRes.complete, true);
+  hex = signRes.hex;
 
-  console.log("Created a bitcoin transaction: ", hex, " with fee: ", fee);
-
-  const { txid } = await client.decodeRawTransaction(hex);
+  const decodeRes = await jsonClient.call("decoderawtransaction", { hexstring: hex }); 
+  const { txid } = decodeRes;
   if (typeof txid !== "string" || txid.length === 0) {
     throw new Error("expected txid to be a string");
   }
@@ -123,12 +120,18 @@ export async function createTransaction(to: string, amount: number, feeRate: num
   return { txid, hex, fee: feeInSats };
 }
 
-export async function sendRawTransaction(txHex: string) {
-  const txHash = await client.sendRawTransaction(txHex);
-  if (typeof txHash !== "string" && txHash.length !== 64) {
+export async function sendRawTransaction(hexstring: string): Promise<string> {
+  const txHash = await jsonClient.call("sendrawtransaction", { hexstring });
+  if (typeof txHash !== "string" || txHash.length !== 64) {
     throw new Error("expected txhash as a result of createRawTransaction, got " + txHash);
   }
+  return txHash;
 }
 
 
-getBalance().then(b => console.log('Wallet balance: ', b));
+async function runner() {
+    const startTime = Date.now();
+    const r = await getBalance();
+    console.log("Wallet has a balance of: ", r, " [took", Date.now() - startTime, "ms]");
+}
+runner();

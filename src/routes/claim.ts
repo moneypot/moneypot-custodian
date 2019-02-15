@@ -1,4 +1,4 @@
-import * as hi from 'hookedin-lib';
+import * as hi from "hookedin-lib";
 
 import * as nonces from '../util/nonces';
 import dbClaimCoin from '../db/claim-coin';
