@@ -12,8 +12,6 @@ export async function claim(body: any): Promise<hi.POD.Acknowledged & hi.POD.Cla
     throw claim;
   }
 
-  console.log("Client trying to claim: ", claim.toPOD());
-
   // pre search if that coin was already claimed...
   let resp = await lookupClaimCoinResponse(claim.coin);
   if (resp !== undefined) {

@@ -83,7 +83,7 @@ export async function insertSpentCoins(client: pg.PoolClient, transferHash: stri
     }
 }
 
-export async function insertTransactionHookin(client: pg.PoolClient, transferHash: string, shookin: hi.SpentTransactionHookin) {
+export async function insertTransactionHookin(client: pg.PoolClient, transferHash: string, shookin: hi.SpentHookin) {
 
     const hookin = shookin.hookin;
 
@@ -92,7 +92,7 @@ export async function insertTransactionHookin(client: pg.PoolClient, transferHas
     try {
         await client.query(
             `
-                INSERT INTO transaction_hookins(hash, transfer_hash, spend_authorization, txid, vout, credit_to, derive_index, tweak, deposit_address, amount)
+                INSERT INTO hookins(hash, transfer_hash, spend_authorization, txid, vout, credit_to, derive_index, tweak, deposit_address, amount)
                 VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)       
                 `,
             [
@@ -109,8 +109,8 @@ export async function insertTransactionHookin(client: pg.PoolClient, transferHas
             ]
           );
     } catch (err) {
-        if (err.code === "23505" && err.constraint === "transaction_hookins_pkey") {
-            throw "TRANSACTION_HOOKIN_ALREADY_EXISTS";
+        if (err.code === "23505" && err.constraint === "hookins_pkey") {
+            throw "HOOKIN_ALREADY_EXISTS";
         }
 
 
@@ -121,7 +121,7 @@ export async function insertTransactionHookin(client: pg.PoolClient, transferHas
 
 type TxInfo = { txid: string, hex: string, fee: number }
 
-export async function insertTransactionHookout(client: pg.PoolClient, transferHash: string, hookout: hi.TransactionHookout, 
+export async function insertTransactionHookout(client: pg.PoolClient, transferHash: string, hookout: hi.Hookout, 
     tx: TxInfo) {
 
         await client.query(`
@@ -131,7 +131,7 @@ export async function insertTransactionHookout(client: pg.PoolClient, transferHa
 
 
         await client.query(`
-           INSERT INTO transaction_hookouts(hash, transfer_hash, amount, bitcoin_address, nonce, immediate, txid)
+           INSERT INTO hookouts(hash, transfer_hash, amount, bitcoin_address, nonce, immediate, txid)
            VALUES($1, $2, $3, $4, $5, $6, $7)
         `, [
             hookout.hash().toBech(),

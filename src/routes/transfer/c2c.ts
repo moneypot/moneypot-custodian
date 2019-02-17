@@ -9,8 +9,6 @@ import { withTransaction, pool } from "../../db/util";
 
 export default async function(body: any): Promise<string> {
 
-    console.log("c2c transfer:" , body);
-
     // TODO: should validate inputs/outputs
     const transfer = hi.TransferCoinToCoin.fromPOD(body);
     if (transfer instanceof Error) {

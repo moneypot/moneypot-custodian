@@ -27,16 +27,25 @@ export default async function(coin: hi.ClaimableCoin): Promise<hi.AcknowledgedCl
     }
 
     const blindNonce = hi.PublicKey.fromBech(row['request_blinding_nonce']);
+    if (blindNonce instanceof Error) { throw blindNonce; }
+    
     const blindedOwner = hi.BlindedMessage.fromBech(row['request_blinded_owner']);
+    if (blindedOwner instanceof Error) { throw blindedOwner; }
+
     const authorization = hi.Signature.fromBech(row['request_authorization']);
+    if (authorization instanceof Error) { throw authorization; }
 
     const claimRequest = new hi.ClaimRequest(coin, blindNonce, blindedOwner, authorization);
 
     
     const blindedExistenceProof = hi.BlindedSignature.fromBech(row['response_blinded_existence_proof']);
+    if (blindedExistenceProof instanceof Error) { throw blindedExistenceProof };
+
     const claimResponse = new hi.ClaimResponse(claimRequest, blindedExistenceProof);
     
     const acknowledgement = hi.Signature.fromBech(row['response_acknowledgement']);
+    if (acknowledgement instanceof Error) { throw acknowledgement; }
+
     const acknowledged: hi.AcknowledgedClaimResponse = new hi.Acknowledged(claimResponse, acknowledgement);
 
     return acknowledged;

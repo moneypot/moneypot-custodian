@@ -13,8 +13,6 @@ import { withTransaction, pool } from "../../db/util";
 // returns an ack
 export default async function(body: any): Promise<string> {
 
-    console.log("Got c2h:" , body);
-
     const transfer = hi.TransferCoinToHookout.fromPOD(body);
     if (transfer instanceof Error) {
         throw transfer;

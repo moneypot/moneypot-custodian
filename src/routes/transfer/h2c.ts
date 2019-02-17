@@ -10,8 +10,6 @@ import { withTransaction, pool } from "../../db/util";
 // hookin2coin :: returns an acknowledgement 
 export default async function(body: any): Promise<string> {
 
-    console.log("Got h2c transfer:" , body);
-
     const transfer = hi.TransferHookinToCoin.fromPOD(body);
     if (transfer instanceof Error) {
         throw transfer;
