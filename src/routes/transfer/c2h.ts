@@ -25,10 +25,13 @@ export default async function(body: any): Promise<string> {
         throw "non-immediate hookouts not yet supported ;(";
     }
 
-    const actualFee = transfer.output.amount - transfer.input.amount;
+    const actualFee = transfer.input.amount - transfer.output.amount;
     const feeRate = actualFee / hi.Params.templateTransactionWeight;
 
-    assert(feeRate >= 0.25);
+    if (feeRate < 0.25) {
+        throw "fee was " + feeRate + " but require a feerate of at least 0.25";
+    }
+
 
     let txRes = await rpcClient.createTransaction(transfer.output.bitcoinAddress, transfer.output.amount, feeRate);
 

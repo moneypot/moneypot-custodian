@@ -33,7 +33,7 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         switch (url) {
             case "/claim":
                 return await claim(body);
-            case "/transfer/ctc":
+            case "/transfer/c2c":
                 return await transferC2C(body);
             case "/transfer/c2h":
                 return await transferC2H(body);
