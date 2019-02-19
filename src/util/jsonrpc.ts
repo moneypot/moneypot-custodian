@@ -1,80 +1,80 @@
-import assert from "assert"
-import http from "http"
-
+import assert from 'assert';
+import http from 'http';
 
 export default class JSONRpcClient {
-
   host: string;
   port: number;
   auth: string;
 
-  constructor (host: string, port: number, username: string, password: string) {
-    this.host = host
-    this.port = port
+  constructor(host: string, port: number, username: string, password: string) {
+    this.host = host;
+    this.port = port;
     this.auth = 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
   }
 
   call(method: string, params: any): Promise<any> {
-      return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
+      const [requestJSON, reqId] = buildRequestJSON(method, params);
+      var headers = {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(requestJSON),
+        Authorization: this.auth,
+      };
+      var options = {
+        hostname: this.host,
+        port: this.port,
+        path: '/',
+        method: 'POST',
+        headers: headers,
+      };
+      var buf = '';
+      var req = http.request(options, function(res) {
+        res.setEncoding('utf8');
+        res.on('data', function(chunk: string) {
+          buf += chunk;
+        });
+        res.on('end', function() {
+          if (buf.length === 0) {
+            reject('got no response');
+            return;
+          }
+          let decoded = JSON.parse(buf);
+          if (decoded.id !== reqId) {
+            console.error('Expected a response of: ', reqId, ' but got: ', decoded.id);
+            reject('unexpected response id');
+            return;
+          }
 
-        const [requestJSON, reqId] = buildRequestJSON(method, params)
-        var headers = {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(requestJSON),
-            'Authorization': this.auth,
-        }
-        var options = {
-            hostname: this.host,
-            port: this.port,
-            path: '/',
-            method: 'POST',
-            headers: headers
-        }
-        var buf = ''
-        var req = http.request(options, function (res) {
-            res.setEncoding('utf8')
-            res.on('data', function (chunk: string) { buf += chunk })
-            res.on('end', function () {
-                if (buf.length === 0) {
-                    reject("got no response");
-                    return;
-                }
-                let decoded = JSON.parse(buf);
-                if (decoded.id !== reqId) {
-                    console.error("Expected a response of: ", reqId, " but got: ", decoded.id);
-                    reject("unexpected response id");
-                    return;
-                }
-
-                if (decoded.result) {
-                    resolve(decoded.result);
-                } else if (decoded.error) {
-                    reject(JSON.stringify(decoded.error));
-                } else {
-                    resolve();
-                }
-            })
-            res.on('error', function (err: any) {
-                reject(err);
-            })
-        })
-        req.write(requestJSON);
-        req.end();
+          if (decoded.result) {
+            resolve(decoded.result);
+          } else if (decoded.error) {
+            reject(JSON.stringify(decoded.error));
+          } else {
+            resolve();
+          }
+        });
+        res.on('error', function(err: any) {
+          reject(err);
+        });
       });
-        
-    }
-
+      req.write(requestJSON);
+      req.end();
+    });
+  }
 }
 
 let reqCounter = 1;
 
 function buildRequestJSON(method: string, params: any): [string, number] {
-    const reqId = reqCounter++;
+  const reqId = reqCounter++;
 
-  return [JSON.stringify({
-      'jsonrpc' : '2.0',
-      'id': reqId,
-      'method': method,
-      'params': params
-  }), reqId];
+  return [
+    JSON.stringify({
+      jsonrpc: '2.0',
+      id: reqId,
+      method: method,
+      params: params,
+    }),
+    reqId,
+  ];
 }

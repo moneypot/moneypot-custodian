@@ -14,7 +14,7 @@
 //   if (res.rows.length === 0) {
 //     return undefined;
 //   }
-  
+
 //   assert.strictEqual(res.rows.length, 1);
 
 //   const row = res.rows[0];

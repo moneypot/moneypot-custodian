@@ -6,7 +6,8 @@
   "scripts": {
     "start": "npm run build:live",
     "build": "tsc -p .",
-    "build:live": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts"
+    "build:live": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+    "prettier": "prettier --single-quote --trailing-comma es5 --print-width 120 --write \"src/**/*.{ts,tsx}\""
   },
   "keywords": [],
   "author": "",
@@ -15,11 +16,15 @@
     "@types/node": "^10.12.18",
     "@types/pg": "^7.4.11",
     "nodemon": "^1.18.9",
+    "prettier": "^1.16.4",
     "ts-node": "^7.0.1",
     "typescript": "^3.2.2"
   },
   "dependencies": {
     "hookedin-lib": "git+https://github.com/hookedin/hookedin-lib.git",
     "pg": "^7.7.1"
+  },
+  "engines": {
+    "node": "11.x"
   }
 }
