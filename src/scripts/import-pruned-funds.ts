@@ -8,7 +8,7 @@ console.log('Importing prune funds');
 async function run() {
   const unimporteds = await pool.query(`
         SELECT txid, vout, amount, credit_to, derive_index
-        FROM transaction_hookins WHERE txid IS NOT NULL
+        FROM hookins WHERE txid IS NOT NULL
     `);
 
   for (const unimported of unimporteds.rows) {
@@ -18,11 +18,12 @@ async function run() {
     const amount: number = Number.parseInt(unimported['amount'], 10);
     assert(Number.isSafeInteger(amount) && amount > 0);
     const creditTo = hi.PublicKey.fromBech(unimported['credit_to']);
+    if (creditTo instanceof Error) { throw creditTo; }
 
     const deriveIndex = Number.parseInt(unimported['derive_index'], 10);
     assert(Number.isSafeInteger(deriveIndex) && deriveIndex >= 0);
 
-    const hookin = new hi.TransactionHookin(txid, vout, amount, creditTo, deriveIndex);
+    const hookin = new hi.Hookin(txid, vout, amount, creditTo, deriveIndex);
 
     const basePrivkey = hi.Params.fundingPrivateKey;
 
