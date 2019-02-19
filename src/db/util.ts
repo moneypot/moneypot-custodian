@@ -1,7 +1,12 @@
 import { Pool, PoolClient } from 'pg';
 
+let connectionString = 'postgres://localhost:5432/captain-hook';
+if (process.env.DATABASE_URL) {
+  connectionString = process.env.DATABASE_URL;
+}
+
 export const pool = new Pool({
-  database: 'captain-hook',
+  connectionString
 });
 
 export async function withTransaction<T>(f: (client: PoolClient) => Promise<T>): Promise<T> {
