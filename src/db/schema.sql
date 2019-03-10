@@ -6,10 +6,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE transfers(
   hash             text        PRIMARY KEY,
-  input            text        NOT NULL, -- hash (can be a transaction_hookins(hash), a lightning_hookins(hash) or a set of spent_coins)
-  output           text        NOT NULL,
-  "authorization"  text        NOT NULL,
-  acknowledgement  text        NOT NULL,
+  input            text        NOT NULL UNIQUE, -- hash (can be a transaction_hookins(hash), a lightning_hookins(hash) or a set of spent_coins)
+  output           text        NOT NULL UNIQUE,
+  "authorization"  text        NOT NULL UNIQUE,
+  acknowledgement  text        NOT NULL UNIQUE,
   created          timestamptz     NULL DEFAULT NOW() -- prunable
 );
 
@@ -17,7 +17,7 @@ CREATE TABLE spent_coins(
    owner                      text     PRIMARY KEY,
    transfer_hash              text     NOT NULL REFERENCES transfers(hash),
    magnitude                  smallint NOT NULL CHECK(magnitude >= 0 AND magnitude <= 30),
-   existence_proof            text     NOT NULL, -- unblinded signature
+   existence_proof            text     NOT NULL -- unblinded signature
 );
 CREATE INDEX spent_coins_transfer_hash_idx on spent_coins(transfer_hash);
 
