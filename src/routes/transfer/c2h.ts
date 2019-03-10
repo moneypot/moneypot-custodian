@@ -46,6 +46,8 @@ export default async function(body: any): Promise<string> {
     );
     if (insertRes === 'TRANSFER_ALREADY_EXISTS') {
       return;
+    } else if (insertRes === 'TRANSFER_INPUT_ALREADY_EXISTS') {
+      throw insertRes;
     } else {
       const _: undefined = insertRes;
     }

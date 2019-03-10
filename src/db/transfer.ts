@@ -18,8 +18,14 @@ export async function insertTransfer(
       [transferHash, input.toBech(), output.toBech(), authorization.toBech(), acknowledgement.toBech()]
     );
   } catch (err) {
-    if (err.code === '23505' && err.constraint === 'transfers_pkey') {
-      return 'TRANSFER_ALREADY_EXISTS';
+    if (err.code === '23505') {
+      switch (err.constraint) {
+        case 'transfers_pkey':
+          return 'TRANSFER_ALREADY_EXISTS';
+        case 'transfers_input_key':
+          return 'TRANSFER_INPUT_ALREADY_EXISTS';
+      }
+      console.error('unknown error trying to insert transfer into db: ', err);
     }
     throw err;
   }
@@ -50,7 +56,6 @@ export async function insertClaimableCoins(client: pg.PoolClient, transferHash: 
 
 export async function insertSpentCoins(client: pg.PoolClient, transferHash: string, coins: hi.ClaimedCoinSet) {
   for (const coin of coins) {
-
     let res;
     try {
       res = await client.query(
@@ -71,8 +76,6 @@ export async function insertSpentCoins(client: pg.PoolClient, transferHash: stri
 }
 
 export async function insertTransactionHookin(client: pg.PoolClient, transferHash: string, hookin: hi.Hookin) {
-
-
   const depositAddress = hi.Params.fundingPublicKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
 
   try {

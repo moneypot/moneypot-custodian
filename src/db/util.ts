@@ -6,7 +6,7 @@ if (process.env.DATABASE_URL) {
 }
 
 export const pool = new Pool({
-  connectionString
+  connectionString,
 });
 
 export async function withTransaction<T>(f: (client: PoolClient) => Promise<T>): Promise<T> {

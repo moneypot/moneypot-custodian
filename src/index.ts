@@ -3,7 +3,6 @@ import nonce from './routes/nonce';
 import readJson from './util/read-json';
 import { claim } from './routes/claim';
 import spentCoin from './routes/spent-coin';
-import routeHookin from './routes/hookin';
 import transferC2C from './routes/transfer/c2c';
 import transferC2H from './routes/transfer/c2h';
 import transferH2C from './routes/transfer/h2c';
@@ -16,8 +15,6 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
 
   if (url === '/nonce') {
     return nonce();
-  } else if (url.startsWith('/hookin/')) {
-    return routeHookin(url);
   } else if (url.startsWith('/spent-coin/')) {
     return spentCoin(url);
   }

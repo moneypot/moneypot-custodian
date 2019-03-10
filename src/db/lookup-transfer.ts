@@ -3,9 +3,7 @@ import assert from 'assert';
 import * as hi from 'hookedin-lib';
 import { pool } from './util';
 
-type AckedTransfer = hi.POD.Transfer & hi.POD.Acknowledged
-
-
+type AckedTransfer = hi.POD.Transfer & hi.POD.Acknowledged;
 
 // export async function byHash(hash: string): Promise<AckedTransfer | undefined> {
 
@@ -29,9 +27,9 @@ type AckedTransfer = hi.POD.Transfer & hi.POD.Acknowledged
 
 // };
 
-
 export async function byInput(input: string): Promise<AckedTransfer | undefined> {
-  const res = await pool.query(`
+  const res = await pool.query(
+    `
        SELECT input, output, "authorization", acknowledgement
        FROM transfers WHERE input = $1 
     `,

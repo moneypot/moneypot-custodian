@@ -18,7 +18,9 @@ async function run() {
     const amount: number = Number.parseInt(unimported['amount'], 10);
     assert(Number.isSafeInteger(amount) && amount > 0);
     const creditTo = hi.PublicKey.fromBech(unimported['credit_to']);
-    if (creditTo instanceof Error) { throw creditTo; }
+    if (creditTo instanceof Error) {
+      throw creditTo;
+    }
 
     const deriveIndex = Number.parseInt(unimported['derive_index'], 10);
     assert(Number.isSafeInteger(deriveIndex) && deriveIndex >= 0);
