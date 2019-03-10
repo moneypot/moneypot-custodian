@@ -5,11 +5,12 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 
 CREATE TABLE transfers(
-  hash            text        PRIMARY KEY,
-  input_hash     text        NOT NULL, -- hash (can be a transaction_hookins(hash), a lightning_hookins(hash) or a set of spent_coins)
-  output_hash     text        NOT NULL,
-  acknowledgement text        NOT NULL,
-  created         timestamptz     NULL DEFAULT NOW() -- prunable
+  hash             text        PRIMARY KEY,
+  input            text        NOT NULL, -- hash (can be a transaction_hookins(hash), a lightning_hookins(hash) or a set of spent_coins)
+  output           text        NOT NULL,
+  "authorization"  text        NOT NULL,
+  acknowledgement  text        NOT NULL,
+  created          timestamptz     NULL DEFAULT NOW() -- prunable
 );
 
 CREATE TABLE spent_coins(
@@ -17,7 +18,6 @@ CREATE TABLE spent_coins(
    transfer_hash              text     NOT NULL REFERENCES transfers(hash),
    magnitude                  smallint NOT NULL CHECK(magnitude >= 0 AND magnitude <= 30),
    existence_proof            text     NOT NULL, -- unblinded signature
-   spend_authorization        text     NOT NULL -- signature of owner signs the transfer_hash
 );
 CREATE INDEX spent_coins_transfer_hash_idx on spent_coins(transfer_hash);
 
@@ -44,7 +44,6 @@ CREATE INDEX claimable_coins_transfer_hash_idx ON claimable_coins(transfer_hash)
 CREATE TABLE hookins(
   hash                        text        PRIMARY KEY,
   transfer_hash               text        NOT NULL REFERENCES transfers(hash),
-  spend_authorization         text        NOT NULL,
   -- everything below is prunable data (after it's been spent...)
   txid                        text            NULL,
   vout                        int             NULL,

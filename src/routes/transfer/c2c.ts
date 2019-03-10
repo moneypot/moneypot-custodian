@@ -26,6 +26,7 @@ export default async function(body: any): Promise<string> {
       transferHash,
       transfer.input.hash(),
       transfer.output.hash(),
+      transfer.authorization,
       ackTransfer.acknowledgement
     );
     if (insertRes === 'TRANSFER_ALREADY_EXISTS') {

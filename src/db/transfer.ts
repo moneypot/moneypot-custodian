@@ -5,16 +5,17 @@ import pg from 'pg';
 export async function insertTransfer(
   client: pg.PoolClient,
   transferHash: string,
-  inputHash: hi.Hash,
-  outputHash: hi.Hash,
+  input: hi.Hash,
+  output: hi.Hash,
+  authorization: hi.Signature,
   acknowledgement: hi.Signature
 ) {
   let res;
   try {
     res = await client.query(
-      `INSERT INTO transfers(hash, input_hash, output_hash, acknowledgement)
-                        VALUES($1, $2, $3, $4)`,
-      [transferHash, inputHash.toBech(), outputHash.toBech(), acknowledgement.toBech()]
+      `INSERT INTO transfers(hash, input, output, "authorization", acknowledgement)
+                        VALUES($1, $2, $3, $4, $5)`,
+      [transferHash, input.toBech(), output.toBech(), authorization.toBech(), acknowledgement.toBech()]
     );
   } catch (err) {
     if (err.code === '23505' && err.constraint === 'transfers_pkey') {
@@ -47,17 +48,15 @@ export async function insertClaimableCoins(client: pg.PoolClient, transferHash: 
   }
 }
 
-export async function insertSpentCoins(client: pg.PoolClient, transferHash: string, coins: hi.SpentCoinSet) {
-  for (let i = 0; i < coins.length; i++) {
-    const coin = coins.get(i);
-    const spendAuthorization = coins.spendAuthorization[i];
+export async function insertSpentCoins(client: pg.PoolClient, transferHash: string, coins: hi.ClaimedCoinSet) {
+  for (const coin of coins) {
 
     let res;
     try {
       res = await client.query(
-        `INSERT INTO spent_coins(owner, transfer_hash, magnitude, existence_proof, spend_authorization)
-            VALUES($1, $2, $3, $4, $5)`,
-        [coin.owner.toBech(), transferHash, coin.magnitude, coin.existenceProof.toBech(), spendAuthorization.toBech()]
+        `INSERT INTO spent_coins(owner, transfer_hash, magnitude, existence_proof)
+            VALUES($1, $2, $3, $4)`,
+        [coin.owner.toBech(), transferHash, coin.magnitude, coin.existenceProof.toBech()]
       );
     } catch (err) {
       if (err.code === '23505' && err.constraint === 'spent_coins_pkey') {
@@ -71,26 +70,25 @@ export async function insertSpentCoins(client: pg.PoolClient, transferHash: stri
   }
 }
 
-export async function insertTransactionHookin(client: pg.PoolClient, transferHash: string, shookin: hi.SpentHookin) {
-  const hookin = shookin.hookin;
+export async function insertTransactionHookin(client: pg.PoolClient, transferHash: string, hookin: hi.Hookin) {
 
-  const depositAddress = hi.Params.fundingPublicKey.tweak(hookin.tweak.toPublicKey()).toBitcoinAddress(true);
+
+  const depositAddress = hi.Params.fundingPublicKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
 
   try {
     await client.query(
       `
-                INSERT INTO hookins(hash, transfer_hash, spend_authorization, txid, vout, credit_to, derive_index, tweak, deposit_address, amount)
-                VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)       
+                INSERT INTO hookins(hash, transfer_hash, txid, vout, credit_to, derive_index, tweak, deposit_address, amount)
+                VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)       
                 `,
       [
         hookin.hash().toBech(),
         transferHash,
-        shookin.spendAuthorization.toBech(),
         hi.Buffutils.toHex(hookin.txid),
         hookin.vout,
         hookin.creditTo.toBech(),
         hookin.deriveIndex,
-        hookin.tweak.toBech(),
+        hookin.getTweak().toBech(),
         depositAddress,
         hookin.amount,
       ]

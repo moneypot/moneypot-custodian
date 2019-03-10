@@ -27,7 +27,7 @@ async function run() {
 
     const basePrivkey = hi.Params.fundingPrivateKey;
 
-    const spendingPrivkey = basePrivkey.tweak(hookin.tweak);
+    const spendingPrivkey = basePrivkey.tweak(hookin.getTweak());
 
     console.log('importing: ', spendingPrivkey.toWif());
     console.log('prebalance: ', await rpcClient.getBalance());

@@ -13,6 +13,17 @@ export default async function(body: any): Promise<string> {
     throw transfer;
   }
 
+  const txOut = await rpcClient.getTxOut(transfer.input.txid, transfer.input.vout);
+
+  // TODO: require a certain amount of confs..
+  // const { confirmations } = txOut.result;
+
+  const expectedAddress = hi.Params.fundingPublicKey.tweak(transfer.input.getTweak().toPublicKey()).toBitcoinAddress(true);
+  if (expectedAddress !== txOut.address) {
+      console.warn('Expected address: ', expectedAddress, ' got address: ', txOut.address);
+      throw "wrong transaction hookin info";
+  }
+  
   const transferHash = transfer.hash().toBech();
 
   const ackTransfer: hi.AcknowledgedTransferHookinToCoin = hi.Acknowledged.acknowledge(
@@ -26,6 +37,7 @@ export default async function(body: any): Promise<string> {
       transferHash,
       transfer.input.hash(),
       transfer.output.hash(),
+      transfer.authorization,
       ackTransfer.acknowledgement
     );
     if (insertRes === 'TRANSFER_ALREADY_EXISTS') {
