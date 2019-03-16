@@ -4,9 +4,8 @@ import lookupTransactionInput from '../db/lookup-spent-coin';
 export default async function(url: string) {
   const owner = url.substring('/spent-coin/'.length);
 
-  try {
-    hi.PublicKey.fromBech(owner);
-  } catch (err) {
+  const o = hi.PublicKey.fromBech(owner);
+  if (o instanceof Error) {
     throw 'INVALID_OWNER';
   }
 

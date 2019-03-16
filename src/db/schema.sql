@@ -13,33 +13,6 @@ CREATE TABLE transfers(
   created          timestamptz     NULL DEFAULT NOW() -- prunable
 );
 
-CREATE TABLE spent_coins(
-   owner                      text     PRIMARY KEY,
-   transfer_hash              text     NOT NULL REFERENCES transfers(hash),
-   magnitude                  smallint NOT NULL CHECK(magnitude >= 0 AND magnitude <= 30),
-   existence_proof            text     NOT NULL -- unblinded signature
-);
-CREATE INDEX spent_coins_transfer_hash_idx on spent_coins(transfer_hash);
-
-
-CREATE TABLE claimable_coins(
-  claimant                          text             PRIMARY KEY,
-  magnitude                         smallint          NOT NULL CHECK(magnitude >= 0 AND magnitude <= 30),
-  transfer_hash                     text                  NULL REFERENCES transfers(hash), -- this exists purely for debugging..
-  -- the claim request is below (if it's been claimed...)
-  request_blinding_nonce            text                  NULL, -- public nonce...
-  request_blinded_owner             text                  NULL,
-  request_authorization             text                  NULL,
-  -- the response we gave --
-  response_blinded_existence_proof  text                  NULL,
-  response_acknowledgement          text                  NULL,
-  CHECK(-- the request/response must be all null or none null
-    num_nulls(request_blinding_nonce, request_blinded_owner, request_authorization, response_blinded_existence_proof, response_acknowledgement) IN (0,5)
-  )
-);
-
-CREATE INDEX claimable_coins_transfer_hash_idx ON claimable_coins(transfer_hash);
-
 
 CREATE TABLE hookins(
   hash                        text        PRIMARY KEY,
@@ -54,6 +27,33 @@ CREATE TABLE hookins(
   deposit_address             text            NULL -- debug info
 );
 CREATE UNIQUE INDEX hookins_transfer_hash_idx ON hookins(transfer_hash);
+
+
+
+CREATE TABLE bounties(
+  hash                              text             PRIMARY KEY,
+  transfer_hash                     text                  NULL REFERENCES transfers(hash), -- this exists purely for debugging..
+  amount                            bigint           NOT NULL CHECK(amount >= 0),
+  claimant                          text             NOT NULL,
+  nonce                             text             NOT NULL,
+  -- the claim response actually contains the claim request ;D
+  claim_response                    jsonb                NULL
+);
+
+CREATE UNIQUE INDEX bounties_transfer_hash_idx ON bounties(transfer_hash);
+CREATE INDEX bounties_claimant_idx ON bounties(claimant);
+
+
+CREATE TABLE spent_coins(
+   owner                      text     PRIMARY KEY,
+   transfer_hash              text     NOT NULL REFERENCES transfers(hash),
+   magnitude                  smallint NOT NULL CHECK(magnitude >= 0 AND magnitude <= 30),
+   existence_proof            text     NOT NULL -- unblinded signature
+);
+CREATE INDEX spent_coins_transfer_hash_idx on spent_coins(transfer_hash);
+
+
+
 
 -- SENDING means it's in progress (or locked up)
 -- SENT means it's totally done and pushed onto the network
@@ -70,7 +70,7 @@ CREATE TABLE bitcoin_transactions(
 -- interestingly once a hookout is safely sent, it's *completely* prunable (e.g. we can just delete it!)
 CREATE TABLE hookouts(
   hash                           text     PRIMARY KEY,
-  transfer_hash                  text        NULL REFERENCES transfers(hash),  -- DEBUG_ONLY
+  transfer_hash                  text         NULL REFERENCES transfers(hash),  -- DEBUG_ONLY
   amount                         bigint   NOT NULL,
   bitcoin_address                text     NOT NULL,
   nonce                          text     NOT NULL,
@@ -80,41 +80,3 @@ CREATE TABLE hookouts(
 
 CREATE INDEX hookouts_transfer_hash_idx ON hookouts(transfer_hash);
 CREATE INDEX hookouts_transfer_txid_idx ON hookouts(txid);
-
-
-
-
--- CREATE OR REPLACE FUNCTION jsonize_transaction(t transactions) RETURNS jsonb
---     AS $$
---       SELECT jsonb_build_object(
---       'hash', t.hash,
---       'inputHash', t.input_hash,
---       'sourceInputs', (
---         SELECT jsonb_agg(jsonb_build_object(
---           'owner', transaction_inputs.owner,
---           'coinMagnitude', transaction_inputs.coin_magnitude,
---           'existenceProof', transaction_inputs.existence_proof,
---           'spendProof', transaction_inputs.spend_proof 
---         ))
---         FROM transaction_inputs
---       WHERE transaction_inputs.transfer_hash = t.hash
---      ),
---       'claimableOutputs', (
---             SELECT jsonb_agg(jsonb_build_object(
---                   'claimant', claimable_outputs.claimant,
---                   'coinMagnitude', claimable_outputs.coin_magnitude
---             ))
---             FROM claimable_outputs
---             WHERE claimable_outputs.transfer_hash = t.hash
---            ),
---       'defundingOutput', (
---           SELECT jsonb_build_object('priority', defunding_outputs.priority)
---           FROM defunding_outputs
---           WHERE defunding_outputs.transfer_hash = t.hash
---        ),
---        'acknowledgement', t.acknowledgement
---     )
---     $$
---     LANGUAGE SQL
---     IMMUTABLE
---     RETURNS NULL ON NULL INPUT;

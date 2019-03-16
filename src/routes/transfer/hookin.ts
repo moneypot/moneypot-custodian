@@ -6,15 +6,17 @@ import * as rpcClient from '../../util/rpc-client';
 import * as dbTransfer from '../../db/transfer';
 import { withTransaction, pool } from '../../db/util';
 
-// hookin2coin :: returns an acknowledgement
+// returns an acknowledgement
 export default async function(body: any): Promise<string> {
-
-  const transfer = hi.TransferHookinToCoin.fromPOD(body);
+  
+  const transfer = hi.TransferHookin.fromPOD(body);
   if (transfer instanceof Error) {
     throw transfer;
   }
 
   const txOut = await rpcClient.getTxOut(transfer.input.txid, transfer.input.vout);
+
+
 
   // TODO: require a certain amount of confs..
   // const { confirmations } = txOut.result;
@@ -29,7 +31,7 @@ export default async function(body: any): Promise<string> {
 
   const transferHash = transfer.hash().toBech();
 
-  const ackTransfer: hi.AcknowledgedTransferHookinToCoin = hi.Acknowledged.acknowledge(
+  const ackTransfer: hi.AcknowledgedTransferHookin = hi.Acknowledged.acknowledge(
     transfer,
     hi.Params.acknowledgementPrivateKey
   );
@@ -43,14 +45,15 @@ export default async function(body: any): Promise<string> {
       transfer.authorization,
       ackTransfer.acknowledgement
     );
+
     if (insertRes === 'TRANSFER_ALREADY_EXISTS') {
       return;
     } else if (insertRes === 'TRANSFER_INPUT_ALREADY_EXISTS') {
       throw insertRes;
     }
 
-    await dbTransfer.insertTransactionHookin(dbClient, transferHash, transfer.input);
-    await dbTransfer.insertClaimableCoins(dbClient, transferHash, transfer.output);
+    await dbTransfer.insertHookin(dbClient, transferHash, transfer.input);
+    await dbTransfer.insertBounty(dbClient, transferHash, transfer.output);
   });
 
   return ackTransfer.acknowledgement.toBech();

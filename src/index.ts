@@ -1,11 +1,12 @@
 import http from 'http';
-import nonce from './routes/nonce';
+import genNonces from './routes/gen-nonces';
 import readJson from './util/read-json';
 import { claim } from './routes/claim';
 import spentCoin from './routes/spent-coin';
-import transferC2C from './routes/transfer/c2c';
-import transferC2H from './routes/transfer/c2h';
-import transferH2C from './routes/transfer/h2c';
+import transferBounty from './routes/transfer/bounty';
+import transferHookout from './routes/transfer/hookout';
+import transferHookin from './routes/transfer/hookin';
+import transferByInput from './routes/transfer-by-input';
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -13,8 +14,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
     throw new Error('404: missing url');
   }
 
-  if (url === '/nonce') {
-    return nonce();
+  if (url.startsWith('/transfer-by-input/')) {
+    return transferByInput(url);
   } else if (url.startsWith('/spent-coin/')) {
     return spentCoin(url);
   }
@@ -22,14 +23,16 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
   if (req.method === 'POST') {
     const body = await readJson(req);
     switch (url) {
+      case '/gen-nonces':
+        return await genNonces(body);
       case '/claim':
         return await claim(body);
-      case '/transfer/c2c':
-        return await transferC2C(body);
-      case '/transfer/c2h':
-        return await transferC2H(body);
-      case '/transfer/h2c':
-        return await transferH2C(body);
+      case '/transfer-bounty':
+        return await transferBounty(body);
+      case '/transfer-hookout':
+        return await transferHookout(body);
+      case '/transfer-hookin':
+        return await transferHookin(body);
     }
   }
 }

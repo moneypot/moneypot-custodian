@@ -33,25 +33,22 @@ export async function insertTransfer(
   assert.strictEqual(res.rowCount, 1);
 }
 
-export async function insertClaimableCoins(client: pg.PoolClient, transferHash: string, coins: hi.ClaimableCoinSet) {
-  // TODO: optimize this into a single query ... lol
-  for (const coin of coins) {
-    let res;
-    try {
+export async function insertBounty(client: pg.PoolClient, transferHash: string, bounty: hi.Bounty) {
+  let res;  
+  try {
       res = await client.query(
-        `INSERT INTO claimable_coins(claimant, magnitude, transfer_hash)
-                 VALUES($1, $2, $3)`,
-        [coin.claimant.toBech(), coin.magnitude, transferHash]
+        `INSERT INTO bounties(hash, transfer_hash, amount, claimant, nonce)
+                 VALUES($1, $2, $3, $4, $5)`,
+        [bounty.hash().toBech(), transferHash, bounty.amount, bounty.claimant.toBech(), hi.Buffutils.toHex(bounty.nonce)]
       );
     } catch (err) {
-      if (err.code === '23505' && err.constraint === 'claimable_coins_pkey') {
-        throw 'CLAIMABLE_COIN_ALREADY_EXISTS';
+      if (err.code === '23505' && err.constraint === 'bounties_pkey') {
+        throw 'BOUNTY_ALREADY_EXISTS';
       }
       throw err;
     }
 
     assert.strictEqual(res.rowCount, 1);
-  }
 }
 
 export async function insertSpentCoins(client: pg.PoolClient, transferHash: string, coins: hi.ClaimedCoinSet) {
@@ -75,7 +72,7 @@ export async function insertSpentCoins(client: pg.PoolClient, transferHash: stri
   }
 }
 
-export async function insertTransactionHookin(client: pg.PoolClient, transferHash: string, hookin: hi.Hookin) {
+export async function insertHookin(client: pg.PoolClient, transferHash: string, hookin: hi.Hookin) {
   const depositAddress = hi.Params.fundingPublicKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
 
   try {

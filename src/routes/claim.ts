@@ -1,27 +1,30 @@
 import * as hi from 'hookedin-lib';
 
-import * as nonces from '../util/nonces';
-import dbClaimCoin from '../db/claim-coin';
-import lookupClaimCoinResponse from '../db/lookup-claim-coin-response';
-import * as assert from 'assert';
+import * as nonceLookup from '../util/nonces';
+import dbClaimCoin from '../db/claim';
+import lookupClaimResponse from '../db/lookup-claim-response';
 
 export async function claim(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
-  const claim = hi.ClaimRequest.fromPOD(body);
-  if (claim instanceof Error) {
-    throw claim;
+  
+  const claimReq = hi.ClaimRequest.fromPOD(body);
+  if (claimReq instanceof Error) {
+    throw claimReq;
   }
 
-  // pre search if that coin was already claimed...
-  let resp = await lookupClaimCoinResponse(claim.coin);
-  if (resp !== undefined) {
-    return resp.toPOD(); // found it, already claimed!
+  if (!claimReq.authorization.verify(claimReq.hash().buffer, claimReq.bounty.claimant)) {
+    throw 'CLAIMANT_AUTHORIZATION_FAIL';
   }
 
-  const nonce = nonces.pull(claim.blindingNonce.toBech());
-  if (nonce === undefined) {
-    throw 'COULD_NOT_FIND_NONCE';
-  }
+  // TODO: uncomment this. We're keeping it commented to test thte rest of the code..
+// const resp = await lookupClaimResponse(claimReq.claim);
+  // if (resp !== undefined) {
+  //   return resp;
+  // }
 
-  resp = await dbClaimCoin(claim, nonce);
-  return resp.toPOD();
+
+  const blindingNonces = claimReq.coins.map(coin => coin.blindingNonce.toBech())
+
+  const nonces = nonceLookup.pull(blindingNonces);
+
+  return await dbClaimCoin(claimReq, nonces);
 }
