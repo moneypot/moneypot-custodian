@@ -1,10 +1,7 @@
-import assert from 'assert';
-import * as config from '../../config';
 import * as hi from 'hookedin-lib';
-import * as rpcClient from '../../util/rpc-client';
 
 import * as dbTransfer from '../../db/transfer';
-import { withTransaction, pool } from '../../db/util';
+import { withTransaction } from '../../db/util';
 
 export default async function(body: any): Promise<string> {
   // TODO: should validate inputs/outputs
@@ -13,34 +10,19 @@ export default async function(body: any): Promise<string> {
     throw transfer;
   }
 
-  const transferHash = transfer.hash().toBech();
-
-  const ackTransfer: hi.AcknowledgedTransferBounty = hi.Acknowledged.acknowledge(
-    transfer,
+  const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
+    transfer.prune(),
     hi.Params.acknowledgementPrivateKey
   );
 
   await withTransaction(async dbClient => {
-    const insertRes = await dbTransfer.insertTransfer(
-      dbClient,
-      transferHash,
-      transfer.input.hash(),
-      transfer.output.hash(),
-      transfer.authorization,
-      ackTransfer.acknowledgement
-    );
-    if (insertRes === 'TRANSFER_ALREADY_EXISTS') {
+    const insertRes = await dbTransfer.insertTransfer(dbClient, ackTransfer);
+    if (!insertRes) {
+      // already exists, so just return the ack...
       return;
     }
 
-    const spir = await dbTransfer.insertSpentCoins(dbClient, transferHash, transfer.input);
-    if (spir === 'COIN_ALREADY_SPENT') {
-      throw spir;
-    } else {
-      const _: undefined = spir;
-    }
-
-    await dbTransfer.insertBounty(dbClient, transferHash, transfer.output);
+    await dbTransfer.insertBounty(dbClient, transfer.output);
   });
 
   return ackTransfer.acknowledgement.toBech();

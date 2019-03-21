@@ -1,12 +1,13 @@
 import http from 'http';
 import genNonces from './routes/gen-nonces';
 import readJson from './util/read-json';
-import { claim } from './routes/claim';
-import spentCoin from './routes/spent-coin';
+import claimBounty from './routes/claim-bounty';
+import claimHookin from './routes/claim-hookin';
+//import spentCoin from './routes/spent-coin';
 import transferBounty from './routes/transfer/bounty';
 import transferHookout from './routes/transfer/hookout';
-import transferHookin from './routes/transfer/hookin';
-import transferByInput from './routes/transfer-by-input';
+import transferHookin from './routes/claim-hookin';
+//import transferByInput from './routes/transfer-by-input';
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -14,19 +15,21 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
     throw new Error('404: missing url');
   }
 
-  if (url.startsWith('/transfer-by-input/')) {
-    return transferByInput(url);
-  } else if (url.startsWith('/spent-coin/')) {
-    return spentCoin(url);
-  }
+  // if (url.startsWith('/transfer-by-input/')) {
+  //   return transferByInput(url);
+  // } else if (url.startsWith('/spent-coin/')) {
+  //   return spentCoin(url);
+  // }
 
   if (req.method === 'POST') {
     const body = await readJson(req);
     switch (url) {
       case '/gen-nonces':
         return await genNonces(body);
-      case '/claim':
-        return await claim(body);
+      case '/claim-bounty':
+        return await claimBounty(body);
+      case '/claim-hookin':
+        return await claimHookin(body);
       case '/transfer-bounty':
         return await transferBounty(body);
       case '/transfer-hookout':

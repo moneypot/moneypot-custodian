@@ -5,7 +5,6 @@ const nonceDuration = 30 * 1000; // 30 seconds in ms
 
 const nonceMap = new Map<string, hi.PrivateKey>();
 
-
 export function gen(count: number): ReadonlyArray<string> {
   const pubkeys: string[] = [];
 
@@ -30,7 +29,6 @@ export function gen(count: number): ReadonlyArray<string> {
 // There's a 50% chance this function throws "RETRY_NONCE" to prevent a wagner attack
 
 export function pull(pubkeys: string[]): hi.PrivateKey[] {
-
   const privkeys = [];
   for (const pubkey of pubkeys) {
     const privkey = nonceMap.get(pubkey);
@@ -40,7 +38,6 @@ export function pull(pubkeys: string[]): hi.PrivateKey[] {
     nonceMap.delete(pubkey);
     privkeys.push(privkey);
   }
-
 
   // Give a 50% chance of just failing this request...
   if (crypto.randomBytes(1).readUInt8(0) % 2 === 0) {

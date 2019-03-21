@@ -1,12 +1,14 @@
 import * as hi from 'hookedin-lib';
 import assert from 'assert';
 import { pool } from './util';
-import lookupClaimCoinResponse from './lookup-claim-response';
+import * as nonceLookup from '../util/nonces';
 
 export default async function(
-  claimRequest: hi.ClaimRequest,
-  secretNonces: hi.PrivateKey[]
+  claimRequest: hi.ClaimBountyRequest | hi.ClaimHookinRequest
 ): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
+  const blindingNonces = claimRequest.coins.map(coin => coin.blindingNonce.toBech());
+
+  const secretNonces = nonceLookup.pull(blindingNonces);
 
   assert.strictEqual(claimRequest.coins.length, secretNonces.length);
 
@@ -17,7 +19,7 @@ export default async function(
     const coin = claimRequest.coins[i];
 
     const blindedExistenceProof = hi.blindSign(
-      hi.Params.blindingCoinPrivateKeys[coin.magnitude],
+      hi.Params.blindingCoinPrivateKeys[coin.magnitude.n],
       secretNonce,
       coin.blindedOwner
     );
@@ -25,30 +27,74 @@ export default async function(
     blindedExistenceProofs.push(blindedExistenceProof);
   }
 
-  const claimResponse = new hi.ClaimResponse(claimRequest, blindedExistenceProofs);
+  const prunedClaimRequest = new hi.ClaimRequest(
+    claimRequest.claim.hash(),
+    claimRequest.coins,
+    claimRequest.authorization
+  );
+
+  const claimResponse = new hi.ClaimResponse(prunedClaimRequest, blindedExistenceProofs);
   const ackClaimResponse: hi.AcknowledgedClaimResponse = hi.Acknowledged.acknowledge(
     claimResponse,
     hi.Params.acknowledgementPrivateKey
   );
 
-  const updateRes = await pool.query(
-    `UPDATE bounties SET claim_response = $1 WHERE hash = $2 AND claim_response IS NULL`,
-    [
-      ackClaimResponse.toPOD(),
-      claimRequest.bounty.hash().toBech()
-    ]
-  );
-
-  // It's possible we were beaten to it, and this coin was race-claimed. So let's check again
-  if (updateRes.rowCount === 0) {
-    const resp = await lookupClaimCoinResponse(claimRequest.bounty);
-    if (resp === undefined) {
-      throw new Error('something weird, couldnt update coin but couldnt find it either');
-    }
-    return resp;
+  if (claimRequest instanceof hi.ClaimBountyRequest) {
+    return await updateAndSelectBounty(claimRequest.claim, ackClaimResponse);
+  } else if (claimRequest instanceof hi.ClaimHookinRequest) {
+    return await insertAndSelectHookin(claimRequest.claim, ackClaimResponse);
+  } else {
+    const _: never = claimRequest;
+    throw new Error('impossible!');
   }
-  assert.strictEqual(updateRes.rowCount, 1);
-
-  return ackClaimResponse.toPOD();
 }
 
+async function updateAndSelectBounty(
+  bounty: hi.Bounty,
+  resp: hi.AcknowledgedClaimResponse
+): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
+  // TODO(optimize): this can be optimized into a single query...
+
+  const bountyHash = bounty.hash().toBech();
+
+  await pool.query(
+    `
+    UPDATE bounties SET claim_response = $1 WHERE hash = $2 AND claim_response IS NULL
+  `,
+    [resp.toPOD(), bountyHash]
+  );
+
+  const selectRes = await pool.query(`SELECT claim_response FROM bounties WHERE hash = $1`, [bountyHash]);
+  if (selectRes.rowCount === 0) {
+    throw 'NOT_FOUND';
+  }
+  assert.strictEqual(selectRes.rows.length, 1);
+
+  return selectRes.rows[0].claim_response;
+}
+
+async function insertAndSelectHookin(
+  hookin: hi.Hookin,
+  resp: hi.AcknowledgedClaimResponse
+): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
+  const hookinHash = hookin.hash().toBech();
+
+  await pool.query(
+    `INSERT INTO hookins(hash, claim_response, hookin)
+    SELECT $1, $2, $3
+    WHERE NOT EXISTS (SELECT 1 FROM hookins WHERE hash = $1)
+    RETURNING claim_response`,
+    [hookinHash, resp.toPOD(), hookin.toPOD()]
+  );
+
+  const res = await pool.query(
+    `
+    SELECT claim_response from hookins WHERE hash = $1
+  `,
+    [hookinHash]
+  );
+
+  assert.strictEqual(res.rows.length, 1);
+
+  return res.rows[0].claim_response;
+}

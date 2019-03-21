@@ -1,13 +1,17 @@
-import * as assert from 'assert';
+import assert from 'assert';
 import * as hi from 'hookedin-lib';
 import { pool } from './util';
 
+export default async function(
+  which: 'bounties' | 'hookins',
+  claimHash: hi.Hash
+): Promise<(hi.POD.ClaimResponse & hi.POD.Acknowledged) | undefined> {
+  assert(['hookins', 'bounties'].includes(which));
 
-export default async function(bounty: hi.Bounty): Promise<(hi.POD.ClaimResponse & hi.POD.Acknowledged) | undefined> {
   const searchRes = await pool.query(
     `SELECT claim_response
         FROM bounties WHERE hash = $1 AND claim_response IS NOT NULL`,
-    [bounty.hash().toBech()]
+    [claimHash.toBech()]
   );
 
   if (searchRes.rows.length === 0) {

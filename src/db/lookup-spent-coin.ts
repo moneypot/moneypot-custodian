@@ -3,13 +3,13 @@ import assert from 'assert';
 import * as hi from 'hookedin-lib';
 import { pool } from './util';
 
-type CoinInfo = hi.POD.ClaimedCoin & hi.POD.TransferHash;
+type CoinInfo = hi.POD.Coin & hi.POD.TransferHash;
 
 export default async function(owner: string): Promise<CoinInfo | undefined> {
   const res = await pool.query(
     `
        SELECT owner, transfer_hash, magnitude, existence_proof
-       FROM spent_coins WHERE id = $1 
+       FROM coins WHERE id = $1 
     `,
     [owner]
   );

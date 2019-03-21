@@ -1,5 +1,3 @@
-//coin to hookout
-
 import assert from 'assert';
 import * as config from '../../config';
 import * as hi from 'hookedin-lib';
@@ -30,33 +28,16 @@ export default async function(body: any): Promise<string> {
 
   let txRes = await rpcClient.createTransaction(transfer.output.bitcoinAddress, transfer.output.amount, feeRate);
 
-  const ackTransfer: hi.AcknowledgedTransferHookout = hi.Acknowledged.acknowledge(
-    transfer,
+  const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
+    transfer.prune(),
     hi.Params.acknowledgementPrivateKey
   );
 
   await withTransaction(async dbClient => {
-    const insertRes = await dbTransfer.insertTransfer(
-      dbClient,
-      transferHash,
-      transfer.input.hash(),
-      transfer.output.hash(),
-      transfer.authorization,
-      ackTransfer.acknowledgement
-    );
-    if (insertRes === 'TRANSFER_ALREADY_EXISTS') {
+    const insertRes = await dbTransfer.insertTransfer(dbClient, ackTransfer);
+    if (!insertRes) {
+      // just return the ack...
       return;
-    } else if (insertRes === 'TRANSFER_INPUT_ALREADY_EXISTS') {
-      throw insertRes;
-    } else {
-      const _: undefined = insertRes;
-    }
-
-    const spir = await dbTransfer.insertSpentCoins(dbClient, transferHash, transfer.input);
-    if (spir === 'COIN_ALREADY_SPENT') {
-      throw spir;
-    } else {
-      const _: undefined = spir;
     }
 
     await dbTransfer.insertTransactionHookout(dbClient, transferHash, transfer.output, txRes);
