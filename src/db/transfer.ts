@@ -34,7 +34,7 @@ export async function insertBounty(client: pg.PoolClient, bounty: hi.Bounty) {
     res = await client.query(
       `INSERT INTO bounties(hash, bounty)
                  VALUES($1, $2)`,
-      [bountyHash, bounty]
+      [bountyHash, bounty.toPOD()]
     );
   } catch (err) {
     if (err.code === '23505' && err.constraint === 'bounties_pkey') {
