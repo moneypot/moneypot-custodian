@@ -3,19 +3,24 @@ import * as hi from 'hookedin-lib';
 import pg from 'pg';
 
 // Returns true if was able, returns false if already existts
-export async function insertTransfer(client: pg.PoolClient, transfer: hi.AcknowledgedTransfer): Promise<boolean> {
+
+type InsertRes = 'SUCCESS' | 'ALREADY_EXISTS';
+
+export async function insertTransfer(client: pg.PoolClient, transfer: hi.AcknowledgedTransfer): Promise<InsertRes> {
+
+  const transferHash: string = transfer.contents.hash().toBech();
+
   let res;
   try {
     res = await client.query(
-      `INSERT INTO transfers(hash, transfer)
-                        VALUES($1, $2)`,
-      [transfer.contents.hash().toBech(), transfer.toPOD()]
+      `INSERT INTO transfers(hash, transfer) VALUES($1, $2)`,
+      [transferHash, transfer.toPOD()]
     );
   } catch (err) {
     if (err.code === '23505') {
       switch (err.constraint) {
         case 'transfers_pkey':
-          return false;
+          return 'ALREADY_EXISTS';
       }
       console.error('unknown error trying to insert transfer into db: ', err);
     }
@@ -23,7 +28,24 @@ export async function insertTransfer(client: pg.PoolClient, transfer: hi.Acknowl
   }
 
   assert.strictEqual(res.rowCount, 1);
-  return true;
+
+  // TODO: do this in a single query...
+  for (const coin of transfer.contents.input) {
+    const owner: string = coin.owner.toBech();
+    try {
+      res = await client.query(
+        `INSERT INTO transfer_inputs(owner, transfer_hash) VALUES ($1, $2)`,
+        [owner, transferHash]
+      );
+    } catch (err) {
+      if (err.code === '23505' && err.constraint === 'transfer_inputs_pkey') {
+        throw 'INPUT_SPENT';
+      }
+      throw err;
+    }
+  }
+
+  return 'SUCCESS';
 }
 
 export async function insertBounty(client: pg.PoolClient, bounty: hi.Bounty) {

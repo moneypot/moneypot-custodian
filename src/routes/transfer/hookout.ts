@@ -35,10 +35,11 @@ export default async function(body: any): Promise<string> {
 
   await withTransaction(async dbClient => {
     const insertRes = await dbTransfer.insertTransfer(dbClient, ackTransfer);
-    if (!insertRes) {
-      // just return the ack...
+    if (insertRes === 'ALREADY_EXISTS') {
+      // already exists, so just return the ack...
       return;
     }
+    assert.strictEqual(insertRes, 'SUCCESS');
 
     await dbTransfer.insertTransactionHookout(dbClient, transferHash, transfer.output, txRes);
   });

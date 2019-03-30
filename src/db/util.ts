@@ -18,8 +18,9 @@ export async function withTransaction<T>(f: (client: PoolClient) => Promise<T>):
     await client.query('COMMIT');
     return r;
   } catch (e) {
+    console.error('withTransaction caught: ', e, ' trying to rollback...');
     // TODO: uncomment this after 1855 is merged
-    // await client.query('ROLLBACK');
+    await client.query('ROLLBACK');
     throw e;
   } finally {
     client.release();

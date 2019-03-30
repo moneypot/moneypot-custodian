@@ -1,3 +1,4 @@
+import * as assert from 'assert';
 import * as hi from 'hookedin-lib';
 
 import * as dbTransfer from '../../db/transfer';
@@ -17,10 +18,11 @@ export default async function(body: any): Promise<string> {
 
   await withTransaction(async dbClient => {
     const insertRes = await dbTransfer.insertTransfer(dbClient, ackTransfer);
-    if (!insertRes) {
+    if (insertRes === 'ALREADY_EXISTS') {
       // already exists, so just return the ack...
       return;
     }
+    assert.strictEqual(insertRes, 'SUCCESS');
 
     await dbTransfer.insertBounty(dbClient, transfer.output);
   });

@@ -7,25 +7,16 @@ console.log('Importing prune funds');
 
 async function run() {
   const unimporteds = await pool.query(`
-        SELECT txid, vout, amount, claimant, derive_index
-        FROM hookins WHERE txid IS NOT NULL
-    `);
+        SELECT hash, hookin FROM hookins WHERE NOT imported
+    `); // TODO: remove limit 2
+
 
   for (const unimported of unimporteds.rows) {
-    const txid = Buffer.from(unimported['txid'], 'hex');
-    const vout: number = unimported['vout'];
-    assert(Number.isSafeInteger(vout));
-    const amount: number = Number.parseInt(unimported['amount'], 10);
-    assert(Number.isSafeInteger(amount) && amount > 0);
-    const claimant = hi.PublicKey.fromBech(unimported['claimant']);
-    if (claimant instanceof Error) {
-      throw claimant;
+
+    const hookin = hi.Hookin.fromPOD(unimported['hookin']);
+    if (hookin instanceof Error) {
+      throw hookin;
     }
-
-    const deriveIndex = Number.parseInt(unimported['derive_index'], 10);
-    assert(Number.isSafeInteger(deriveIndex) && deriveIndex >= 0);
-
-    const hookin = new hi.Hookin(txid, vout, amount, claimant, deriveIndex);
 
     const basePrivkey = hi.Params.fundingPrivateKey;
 
@@ -39,7 +30,7 @@ async function run() {
 
     console.log('postbalance: ', await rpcClient.getBalance());
 
-    console.log('got hookin: ', hookin.toPOD());
+    await pool.query(`UPDATE hookins SET imported = true WHERE hash = $1`, [unimported['hash']]);
   }
 }
 
