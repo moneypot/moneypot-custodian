@@ -13,6 +13,10 @@ export default async function(body: any): Promise<string> {
     throw transfer;
   }
 
+  if (!transfer.isValid()) {
+    throw 'INVALID_TRANSFER';
+  }
+
   const transferHash = transfer.hash().toBech();
 
   if (!transfer.output.immediate) {

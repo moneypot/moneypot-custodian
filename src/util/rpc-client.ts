@@ -16,6 +16,23 @@ export async function getBalance(): Promise<number> {
   return Math.round(b * 1e8);
 }
 
+// returns as hex...
+export async function getRawTransaction(txid: string) {
+  try {
+    const transaction = await jsonClient.call('getrawtransaction', { txid, verbose: false });
+    return transaction as string;
+  } catch (err) {
+    if (typeof err === 'string' && /Use gettransaction for wallet transactions/.test(err)) {
+      const transaction = await jsonClient.call('gettransaction', { txid });
+      return transaction.hex as string;
+    }
+
+    throw err;
+  }
+
+}
+
+
 export async function getTxOut(transactionID: Uint8Array, vout: number) {
   assert(Number.isSafeInteger(vout) && vout >= 0);
 
@@ -27,7 +44,9 @@ export async function getTxOut(transactionID: Uint8Array, vout: number) {
 
   // Note this technically uses deprecated behavior (getRawTransaction is supposed to stop working with unspent tx's eventually)
 
-  const transaction = await jsonClient.call('getrawtransaction', { txid, verbose: true });
+  const rawTx = await getRawTransaction(txid);
+
+  const transaction = await jsonClient.call('decoderawtransaction', { hexstring: rawTx });
 
   assert(transaction.txid === txid);
 
@@ -54,8 +73,16 @@ export async function importPrivateKey(privkey: string) {
 export async function importPrunedFunds(transactionId: Uint8Array) {
   const txid = hi.Buffutils.toHex(transactionId);
 
-  const rawtransaction = await jsonClient.call('getrawtransaction', { txid, verbose: false });
-  const txoutproof = await jsonClient.call('gettxoutproof', { txids: [txid] });
+  const rawtransaction = await getRawTransaction(txid);
+  let txoutproof;
+  try { 
+    txoutproof = await jsonClient.call('gettxoutproof', { txids: [txid] });
+  } catch (err) {
+    if (typeof err === 'string' && /Transaction not yet in block/.test(err)) {
+      return; // it's already spent, so let's ignore
+    }
+    throw err;
+  }
 
   await jsonClient.call('importprunedfunds', { rawtransaction, txoutproof });
 }
@@ -73,7 +100,7 @@ export async function getConsolidationFeeRate() {
 
 export async function createTransaction(to: string, amount: number, feeRate: number) {
   const inBtc = (amount / 1e8).toFixed(8);
-  feeRate = (feeRate * 4) / 1000; // convert to vByte than per 1000
+  const fmtdFeeRate = ((feeRate / 1e8) * 4000).toFixed(8); // convert to bitcoin per 1000 vByte
 
   const outputs = { [to]: inBtc };
 
@@ -82,7 +109,7 @@ export async function createTransaction(to: string, amount: number, feeRate: num
     throw new Error('expected rawTx from createRawTransaction to be a hex string');
   }
 
-  const res = await jsonClient.call('fundrawtransaction', { hexstring: rawTx, options: { feeRate } });
+  const res = await jsonClient.call('fundrawtransaction', { hexstring: rawTx, options: { feeRate: fmtdFeeRate } });
   if (typeof res !== 'object') {
     throw new Error('fund raw transaction result expected object');
   }

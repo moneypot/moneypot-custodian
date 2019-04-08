@@ -27,10 +27,14 @@ CREATE TABLE hookins(
 
 CREATE TABLE bounties(
   hash                              text             PRIMARY KEY,
-  bounty                            jsonb               NULL, -- debug only. fully prunable. We only need the bounty hash...
+  bounty                            jsonb            NOT NULL,
   -- the claim response actually contains the claim request ;D
   claim_response                    jsonb                NULL -- ack'd. only exists if it's been claimed...
 );
+
+CREATE INDEX bounties_bounty_claimant_idx ON bounties((bounty->>'claimant'), (claim_response IS NULL)); 
+
+
 
 
 -- SENDING means it's in progress (or locked up)
@@ -52,4 +56,4 @@ CREATE TABLE hookouts(
   txid      text             NULL REFERENCES bitcoin_transactions(txid)
 );
 
-CREATE INDEX hookouts_transfer_txid_idx ON hookouts(txid);
+CREATE INDEX hookouts_txid_idx ON hookouts(txid);

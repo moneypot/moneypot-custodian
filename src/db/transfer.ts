@@ -76,26 +76,16 @@ export async function insertTransactionHookout(
   hookout: hi.Hookout,
   tx: TxInfo
 ) {
-  await client.query(
-    `
-            INSERT INTO bitcoin_transactions(txid, hex, fee, status)
-            VALUES($1, $2, $3, $4)
-        `,
+  await client.query(`INSERT INTO bitcoin_transactions(txid, hex, fee, status)
+        VALUES($1, $2, $3, $4)`,
     [tx.txid, tx.hex, tx.fee, 'SENDING']
   );
 
-  await client.query(
-    `
-           INSERT INTO hookouts(hash, transfer_hash, amount, bitcoin_address, nonce, immediate, txid)
-           VALUES($1, $2, $3, $4, $5, $6, $7)
-        `,
+  await client.query(`INSERT INTO hookouts(hash, hookout, txid)
+           VALUES($1, $2, $3)`,
     [
       hookout.hash().toBech(),
-      transferHash,
-      hookout.amount,
-      hookout.bitcoinAddress,
-      hi.Buffutils.toHex(hookout.nonce),
-      hookout.immediate,
+      hookout.toPOD(),
       tx.txid,
     ]
   );

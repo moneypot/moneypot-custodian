@@ -35,26 +35,26 @@ export default class JSONRpcClient {
         });
         res.on('end', function() {
           if (buf.length === 0) {
-            reject('got no response');
+            reject(new Error('got no response'));
             return;
           }
           let decoded = JSON.parse(buf);
           if (decoded.id !== reqId) {
             console.error('Expected a response of: ', reqId, ' but got: ', decoded.id);
-            reject('unexpected response id');
+            reject(new Error('unexpected response id'));
             return;
           }
 
           if (decoded.result) {
             resolve(decoded.result);
           } else if (decoded.error) {
-            reject(JSON.stringify(decoded.error));
+            reject(new Error(JSON.stringify(decoded.error)));
           } else {
             resolve();
           }
         });
         res.on('error', function(err: any) {
-          reject(err);
+          reject(new Error(err));
         });
       });
       req.write(requestJSON);

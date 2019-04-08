@@ -5,9 +5,9 @@ import claimBounty from './routes/claim-bounty';
 import claimHookin from './routes/claim-hookin';
 import transferBounty from './routes/transfer/bounty';
 import transferHookout from './routes/transfer/hookout';
-import transferHookin from './routes/claim-hookin';
 import transfer from './routes/transfer';
 import coin from './routes/coin';
+import bountiesByClaimant from './routes/bounties-by-claimant';
 
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
@@ -16,10 +16,12 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
     throw new Error('404: missing url');
   }
 
-  if (url.startsWith('/transfer/')) {
+  if (url.startsWith('/transfers/')) {
     return transfer(url);
   } else if (url.startsWith('/coin/')) {
     return coin(url);
+  } else if (url.startsWith('/bounties/claimants/')) {
+    return bountiesByClaimant(url);
   }
 
   if (req.method === 'POST') {
@@ -35,8 +37,6 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         return await transferBounty(body);
       case '/transfer-hookout':
         return await transferHookout(body);
-      case '/transfer-hookin':
-        return await transferHookin(body);
     }
   }
 }

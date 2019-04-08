@@ -11,6 +11,10 @@ export default async function(body: any): Promise<string> {
     throw transfer;
   }
 
+  if (!transfer.isValid()) {
+    throw 'INVALID_TRANSFER';
+  }
+
   const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
     transfer.prune(),
     hi.Params.acknowledgementPrivateKey
