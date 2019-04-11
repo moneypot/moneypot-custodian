@@ -8,7 +8,6 @@ import transfer from './routes/transfer';
 import coin from './routes/coin';
 import bountiesByClaimant from './routes/bounties-by-claimant';
 
-
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
   if (url === undefined) {

@@ -7,15 +7,11 @@ import pg from 'pg';
 type InsertRes = 'SUCCESS' | 'ALREADY_EXISTS';
 
 export async function insertTransfer(client: pg.PoolClient, transfer: hi.AcknowledgedTransfer): Promise<InsertRes> {
-
   const transferHash: string = transfer.contents.hash().toBech();
 
   let res;
   try {
-    res = await client.query(
-      `INSERT INTO transfers(hash, transfer) VALUES($1, $2)`,
-      [transferHash, transfer.toPOD()]
-    );
+    res = await client.query(`INSERT INTO transfers(hash, transfer) VALUES($1, $2)`, [transferHash, transfer.toPOD()]);
   } catch (err) {
     if (err.code === '23505') {
       switch (err.constraint) {
@@ -33,10 +29,10 @@ export async function insertTransfer(client: pg.PoolClient, transfer: hi.Acknowl
   for (const coin of transfer.contents.inputs) {
     const owner: string = coin.owner.toBech();
     try {
-      res = await client.query(
-        `INSERT INTO transfer_inputs(owner, transfer_hash) VALUES ($1, $2)`,
-        [owner, transferHash]
-      );
+      res = await client.query(`INSERT INTO transfer_inputs(owner, transfer_hash) VALUES ($1, $2)`, [
+        owner,
+        transferHash,
+      ]);
     } catch (err) {
       if (err.code === '23505' && err.constraint === 'transfer_inputs_pkey') {
         throw 'INPUT_SPENT';
@@ -70,22 +66,16 @@ export async function insertBounty(client: pg.PoolClient, bounty: hi.Bounty) {
 
 type TxInfo = { txid: string; hex: string; fee: number };
 
-export async function insertTransactionHookout(
-  client: pg.PoolClient,
-  hookout: hi.Hookout,
-  tx: TxInfo
-) {
-  await client.query(`INSERT INTO bitcoin_transactions(txid, hex, fee, status)
+export async function insertTransactionHookout(client: pg.PoolClient, hookout: hi.Hookout, tx: TxInfo) {
+  await client.query(
+    `INSERT INTO bitcoin_transactions(txid, hex, fee, status)
         VALUES($1, $2, $3, $4)`,
     [tx.txid, tx.hex, tx.fee, 'SENDING']
   );
 
-  await client.query(`INSERT INTO hookouts(hash, hookout, txid)
+  await client.query(
+    `INSERT INTO hookouts(hash, hookout, txid)
            VALUES($1, $2, $3)`,
-    [
-      hookout.hash().toBech(),
-      hookout.toPOD(),
-      tx.txid,
-    ]
+    [hookout.hash().toBech(), hookout.toPOD(), tx.txid]
   );
 }

@@ -29,9 +29,7 @@ export async function getRawTransaction(txid: string) {
 
     throw err;
   }
-
 }
-
 
 export async function getTxOut(transactionID: Uint8Array, vout: number) {
   assert(Number.isSafeInteger(vout) && vout >= 0);
@@ -75,7 +73,7 @@ export async function importPrunedFunds(transactionId: Uint8Array) {
 
   const rawtransaction = await getRawTransaction(txid);
   let txoutproof;
-  try { 
+  try {
     txoutproof = await jsonClient.call('gettxoutproof', { txids: [txid] });
   } catch (err) {
     if (err.message && /Transaction not yet in block/.test(err.message)) {

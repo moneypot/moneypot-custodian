@@ -10,9 +10,7 @@ async function run() {
         SELECT hash, hookin FROM hookins WHERE NOT imported
     `); // TODO: remove limit 2
 
-
   for (const unimported of unimporteds.rows) {
-
     const hookin = hi.Hookin.fromPOD(unimported['hookin']);
     if (hookin instanceof Error) {
       throw hookin;
