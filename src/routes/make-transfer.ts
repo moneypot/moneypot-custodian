@@ -42,10 +42,6 @@ export default async function makeTransfer(body: any): Promise<string> {
      }
   })());
 
-  const transferHash = transfer.hash().toBech();
-
-
-
   const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
     transfer.prune(),
     hi.Params.acknowledgementPrivateKey
@@ -68,6 +64,13 @@ export default async function makeTransfer(body: any): Promise<string> {
     }
 
   });
+
+  if (send) {
+    rpcClient.sendRawTransaction(send.transaction.hex).catch(err => {
+      console.error('[INTERNAL_ERROR] [ACTION_REQUIRED] could not send transaction: ', send, ' got: ', err);
+    });
+  }
+
 
   return ackTransfer.acknowledgement.toBech();
 }
