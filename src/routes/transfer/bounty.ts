@@ -1,35 +1,35 @@
-import * as assert from 'assert';
-import * as hi from 'hookedin-lib';
+// import * as assert from 'assert';
+// import * as hi from 'hookedin-lib';
 
-import * as dbTransfer from '../../db/transfer';
-import { withTransaction } from '../../db/util';
+// import * as dbTransfer from '../../db/transfer';
+// import { withTransaction } from '../../db/util';
 
-export default async function(body: any): Promise<string> {
-  // TODO: should validate inputs/outputs
-  const transfer = hi.TransferBounty.fromPOD(body);
-  if (transfer instanceof Error) {
-    throw transfer;
-  }
+// export default async function(body: any): Promise<string> {
+//   // TODO: should validate inputs/outputs
+//   const transfer = hi.TransferBounty.fromPOD(body);
+//   if (transfer instanceof Error) {
+//     throw transfer;
+//   }
 
-  if (!transfer.isValid()) {
-    throw 'INVALID_TRANSFER';
-  }
+//   if (!transfer.isValid()) {
+//     throw 'INVALID_TRANSFER';
+//   }
 
-  const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
-    transfer.prune(),
-    hi.Params.acknowledgementPrivateKey
-  );
+//   const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
+//     transfer.prune(),
+//     hi.Params.acknowledgementPrivateKey
+//   );
 
-  await withTransaction(async dbClient => {
-    const insertRes = await dbTransfer.insertTransfer(dbClient, ackTransfer);
-    if (insertRes === 'ALREADY_EXISTS') {
-      // already exists, so just return the ack...
-      return;
-    }
-    assert.strictEqual(insertRes, 'SUCCESS');
+//   await withTransaction(async dbClient => {
+//     const insertRes = await dbTransfer.insertTransfer(dbClient, ackTransfer);
+//     if (insertRes === 'ALREADY_EXISTS') {
+//       // already exists, so just return the ack...
+//       return;
+//     }
+//     assert.strictEqual(insertRes, 'SUCCESS');
 
-    await dbTransfer.insertBounty(dbClient, transfer.output);
-  });
+//     await dbTransfer.insertBounty(dbClient, transfer.output);
+//   });
 
-  return ackTransfer.acknowledgement.toBech();
-}
+//   return ackTransfer.acknowledgement.toBech();
+// }

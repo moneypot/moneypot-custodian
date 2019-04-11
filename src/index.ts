@@ -3,8 +3,7 @@ import genNonces from './routes/gen-nonces';
 import readJson from './util/read-json';
 import claimBounty from './routes/claim-bounty';
 import claimHookin from './routes/claim-hookin';
-import transferBounty from './routes/transfer/bounty';
-import transferHookout from './routes/transfer/hookout';
+import makeTransfer from './routes/make-transfer';
 import transfer from './routes/transfer';
 import coin from './routes/coin';
 import bountiesByClaimant from './routes/bounties-by-claimant';
@@ -33,10 +32,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         return await claimBounty(body);
       case '/claim-hookin':
         return await claimHookin(body);
-      case '/transfer-bounty':
-        return await transferBounty(body);
-      case '/transfer-hookout':
-        return await transferHookout(body);
+      case '/transfer':
+        return await makeTransfer(body);
     }
   }
 }

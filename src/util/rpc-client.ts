@@ -78,7 +78,7 @@ export async function importPrunedFunds(transactionId: Uint8Array) {
   try { 
     txoutproof = await jsonClient.call('gettxoutproof', { txids: [txid] });
   } catch (err) {
-    if (typeof err === 'string' && /Transaction not yet in block/.test(err)) {
+    if (err.message && /Transaction not yet in block/.test(err.message)) {
       return; // it's already spent, so let's ignore
     }
     throw err;

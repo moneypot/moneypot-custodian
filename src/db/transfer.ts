@@ -30,7 +30,7 @@ export async function insertTransfer(client: pg.PoolClient, transfer: hi.Acknowl
   assert.strictEqual(res.rowCount, 1);
 
   // TODO: do this in a single query...
-  for (const coin of transfer.contents.input) {
+  for (const coin of transfer.contents.inputs) {
     const owner: string = coin.owner.toBech();
     try {
       res = await client.query(
@@ -72,7 +72,6 @@ type TxInfo = { txid: string; hex: string; fee: number };
 
 export async function insertTransactionHookout(
   client: pg.PoolClient,
-  transferHash: string,
   hookout: hi.Hookout,
   tx: TxInfo
 ) {
