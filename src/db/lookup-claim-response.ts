@@ -11,7 +11,7 @@ export default async function(
   const searchRes = await pool.query(
     `SELECT claim_response
         FROM bounties WHERE hash = $1 AND claim_response IS NOT NULL`,
-    [claimHash.toBech()]
+    [claimHash.toPOD()]
   );
 
   if (searchRes.rows.length === 0) {

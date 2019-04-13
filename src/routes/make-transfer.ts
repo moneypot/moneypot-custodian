@@ -68,5 +68,5 @@ export default async function makeTransfer(body: any): Promise<string> {
     });
   }
 
-  return ackTransfer.acknowledgement.toBech();
+  return ackTransfer.acknowledgement.toPOD();
 }

@@ -31,5 +31,5 @@
 //     await dbTransfer.insertBounty(dbClient, transfer.output);
 //   });
 
-//   return ackTransfer.acknowledgement.toBech();
+//   return ackTransfer.acknowledgement.toPOD();
 // }

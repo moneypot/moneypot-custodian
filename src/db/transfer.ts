@@ -7,7 +7,7 @@ import pg from 'pg';
 type InsertRes = 'SUCCESS' | 'ALREADY_EXISTS';
 
 export async function insertTransfer(client: pg.PoolClient, transfer: hi.AcknowledgedTransfer): Promise<InsertRes> {
-  const transferHash: string = transfer.contents.hash().toBech();
+  const transferHash: string = transfer.contents.hash().toPOD();
 
   let res;
   try {
@@ -27,7 +27,7 @@ export async function insertTransfer(client: pg.PoolClient, transfer: hi.Acknowl
 
   // TODO: do this in a single query...
   for (const coin of transfer.contents.inputs) {
-    const owner: string = coin.owner.toBech();
+    const owner: string = coin.owner.toPOD();
     try {
       res = await client.query(`INSERT INTO transfer_inputs(owner, transfer_hash) VALUES ($1, $2)`, [
         owner,
@@ -45,7 +45,7 @@ export async function insertTransfer(client: pg.PoolClient, transfer: hi.Acknowl
 }
 
 export async function insertBounty(client: pg.PoolClient, bounty: hi.Bounty) {
-  const bountyHash = bounty.hash().toBech();
+  const bountyHash = bounty.hash().toPOD();
 
   let res;
   try {
@@ -76,6 +76,6 @@ export async function insertTransactionHookout(client: pg.PoolClient, hookout: h
   await client.query(
     `INSERT INTO hookouts(hash, hookout, txid)
            VALUES($1, $2, $3)`,
-    [hookout.hash().toBech(), hookout.toPOD(), tx.txid]
+    [hookout.hash().toPOD(), hookout.toPOD(), tx.txid]
   );
 }

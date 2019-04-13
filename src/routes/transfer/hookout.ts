@@ -17,7 +17,7 @@
 //     throw 'INVALID_TRANSFER';
 //   }
 
-//   const transferHash = transfer.hash().toBech();
+//   const transferHash = transfer.hash().toPOD();
 
 //   if (!transfer.output.immediate) {
 //     throw 'non-immediate hookouts not yet supported ;(';
@@ -52,5 +52,5 @@
 //     console.error('[INTERNAL_ERROR] [ACTION_REQUIRED] could not send transaction: ', txRes, ' got: ', err);
 //   });
 
-//   return ackTransfer.acknowledgement.toBech();
+//   return ackTransfer.acknowledgement.toPOD();
 // }

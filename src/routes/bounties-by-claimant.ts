@@ -4,7 +4,7 @@ import lookupBountiesByClaimant from '../db/lookup-bounties-by-claimant';
 export default async function(url: string) {
   const claimant = url.substring('/bounties/claimants/'.length);
 
-  if (hi.PublicKey.fromBech(claimant) instanceof Error) {
+  if (hi.PublicKey.fromPOD(claimant) instanceof Error) {
     throw 'INVALID_CLAIMANT';
   }
 

@@ -4,7 +4,7 @@ import lookupCoin from '../db/lookup-coin';
 export default async function(url: string) {
   const owner = url.substring('/coin/'.length);
 
-  const o = hi.PublicKey.fromBech(owner);
+  const o = hi.PublicKey.fromPOD(owner);
   if (o instanceof Error) {
     throw 'INVALID_OWNER';
   }

@@ -10,7 +10,7 @@ export function gen(count: number): ReadonlyArray<string> {
 
   for (let i = 0; i < count; i++) {
     const privNonce = hi.PrivateKey.fromRand();
-    const pubkey = privNonce.toPublicKey().toBech();
+    const pubkey = privNonce.toPublicKey().toPOD();
 
     nonceMap.set(pubkey, privNonce);
 

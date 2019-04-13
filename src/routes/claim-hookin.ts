@@ -48,7 +48,7 @@ async function importHookin(hookin: hi.Hookin) {
   try {
     await rpcClient.importPrivateKey(spendingPrivkey);
     await rpcClient.importPrunedFunds(hookin.txid);
-    await pool.query(`UPDATE hookins SET imported = true WHERE hash = $1`, [hookin.hash().toBech()]);
+    await pool.query(`UPDATE hookins SET imported = true WHERE hash = $1`, [hookin.hash().toPOD()]);
   } catch (err) {
     console.error('could not import funds!', err);
   }

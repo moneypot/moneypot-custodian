@@ -6,7 +6,7 @@ import * as nonceLookup from '../util/nonces';
 export default async function(
   claimRequest: hi.ClaimBountyRequest | hi.ClaimHookinRequest
 ): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
-  const blindingNonces = claimRequest.coins.map(coin => coin.blindingNonce.toBech());
+  const blindingNonces = claimRequest.coins.map(coin => coin.blindingNonce.toPOD());
 
   const secretNonces = nonceLookup.pull(blindingNonces);
 
@@ -55,7 +55,7 @@ async function updateAndSelectBounty(
 ): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
   // TODO(optimize): this can be optimized into a single query...
 
-  const bountyHash = bounty.hash().toBech();
+  const bountyHash = bounty.hash().toPOD();
 
   await pool.query(
     `
@@ -77,7 +77,7 @@ async function insertAndSelectHookin(
   hookin: hi.Hookin,
   resp: hi.AcknowledgedClaimResponse
 ): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
-  const hookinHash = hookin.hash().toBech();
+  const hookinHash = hookin.hash().toPOD();
 
   await pool.query(
     `INSERT INTO hookins(hash, claim_response, hookin)

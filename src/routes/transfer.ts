@@ -4,7 +4,7 @@ import * as lookupTransfer from '../db/lookup-transfer';
 export default async function(url: string) {
   const input = url.substring('/transfers/'.length);
 
-  const hash = hi.Hash.fromBech(input);
+  const hash = hi.Hash.fromPOD(input);
   if (hash instanceof Error) {
     throw 'INVALID_HASH';
   }
