@@ -10,6 +10,7 @@
     "serve": "node dist/index.js",
     "watch-node": "nodemon dist/index.js",
     "watch-ts": "tsc -w",
+    "postinstall": "npm run build-ts",
     "prettier": "prettier --single-quote --trailing-comma es5 --print-width 120 --write \"src/**/*.{ts,tsx}\""
   },
   "keywords": [],
