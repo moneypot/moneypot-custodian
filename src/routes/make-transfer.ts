@@ -10,12 +10,11 @@ export default async function makeTransfer(body: any): Promise<string> {
     throw transfer;
   }
 
-
   if (!transfer.isValid()) {
     throw 'INVALID_TRANSFER';
   }
 
-  let send: { hookout: hi.Hookout, transaction: rpcClient.CreateTransactionResult } | undefined;
+  let send: { hookout: hi.Hookout; transaction: rpcClient.CreateTransactionResult } | undefined;
 
   if (transfer.output instanceof hi.Hookout) {
     const hookout = transfer.output;
@@ -51,10 +50,9 @@ export default async function makeTransfer(body: any): Promise<string> {
 
     await dbTransfer.insertBounty(dbClient, transfer.change);
 
-
     if (transfer.output instanceof hi.Hookout) {
       if (!send) {
-        throw new Error("assertion failure");
+        throw new Error('assertion failure');
       }
 
       await dbTransfer.insertTransactionHookout(dbClient, send.hookout, send.transaction);
@@ -62,10 +60,8 @@ export default async function makeTransfer(body: any): Promise<string> {
       await dbTransfer.insertBounty(dbClient, transfer.output);
     } else {
       const _unreachable: never = transfer.output;
-      throw new Error("unreachable!");
+      throw new Error('unreachable!');
     }
-
-
   });
 
   if (send) {
