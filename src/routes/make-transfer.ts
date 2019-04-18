@@ -10,20 +10,16 @@ export default async function makeTransfer(body: any): Promise<string> {
     throw transfer;
   }
 
-  if (transfer.bounties.length > 2) {
-    throw 'max of 2 bounties per transfer is supported for now';
-  }
 
   if (!transfer.isValid()) {
     throw 'INVALID_TRANSFER';
   }
 
-  let send = await (async () => {
-    if (!transfer.hookout) {
-      return;
-    }
+  let send: { hookout: hi.Hookout, transaction: rpcClient.CreateTransactionResult } | undefined;
 
-    if (!transfer.hookout.immediate) {
+  if (transfer.output instanceof hi.Hookout) {
+    const hookout = transfer.output;
+    if (!hookout.immediate) {
       throw 'non-immediate hookouts not yet supported ;(';
     }
 
@@ -34,11 +30,11 @@ export default async function makeTransfer(body: any): Promise<string> {
       throw 'fee was ' + feeRate + ' but require a feerate of at least 0.25';
     }
 
-    return {
-      hookout: transfer.hookout,
-      transaction: await rpcClient.createTransaction(transfer.hookout.bitcoinAddress, transfer.hookout.amount, feeRate),
+    send = {
+      hookout,
+      transaction: await rpcClient.createTransaction(hookout.bitcoinAddress, hookout.amount, feeRate),
     };
-  })();
+  }
 
   const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
     transfer.prune(),
@@ -53,13 +49,23 @@ export default async function makeTransfer(body: any): Promise<string> {
     }
     assert.strictEqual(insertRes, 'SUCCESS');
 
-    for (const bounty of transfer.bounties) {
-      await dbTransfer.insertBounty(dbClient, bounty);
+    await dbTransfer.insertBounty(dbClient, transfer.change);
+
+
+    if (transfer.output instanceof hi.Hookout) {
+      if (!send) {
+        throw new Error("assertion failure");
+      }
+
+      await dbTransfer.insertTransactionHookout(dbClient, send.hookout, send.transaction);
+    } else if (transfer.output instanceof hi.Bounty) {
+      await dbTransfer.insertBounty(dbClient, transfer.output);
+    } else {
+      const _unreachable: never = transfer.output;
+      throw new Error("unreachable!");
     }
 
-    if (send) {
-      await dbTransfer.insertTransactionHookout(dbClient, send.hookout, send.transaction);
-    }
+
   });
 
   if (send) {

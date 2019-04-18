@@ -96,7 +96,9 @@ export async function getConsolidationFeeRate() {
   return await getFeeRate(144, 'ECONOMICAL');
 }
 
-export async function createTransaction(to: string, amount: number, feeRate: number) {
+export type CreateTransactionResult = { txid: string, hex: string, fee: number};
+
+export async function createTransaction(to: string, amount: number, feeRate: number): Promise<CreateTransactionResult> {
   const inBtc = (amount / 1e8).toFixed(8);
   const fmtdFeeRate = ((feeRate / 1e8) * 4000).toFixed(8); // convert to bitcoin per 1000 vByte
 
