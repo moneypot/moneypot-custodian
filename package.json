@@ -6,8 +6,7 @@
   "scripts": {
     "build-ts": "tsc",
     "dev": "npm run build-ts && npm run start",
-    "start": "npm run serve",
-    "serve": "node dist/index.js",
+    "start": "node dist/index.js",
     "watch-node": "nodemon dist/index.js",
     "watch-ts": "tsc -w",
     "postinstall": "npm run build-ts",
