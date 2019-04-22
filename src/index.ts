@@ -7,11 +7,16 @@ import makeTransfer from './routes/make-transfer';
 import transfer from './routes/transfer';
 import coin from './routes/coin';
 import bountiesByClaimant from './routes/bounties-by-claimant';
+import homepage from './routes/homepage';
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
   if (url === undefined) {
     throw new Error('404: missing url');
+  }
+
+  if (url === '/') {
+    return homepage();
   }
 
   if (url.startsWith('/transfers/')) {
