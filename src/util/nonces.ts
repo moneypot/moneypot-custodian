@@ -1,7 +1,10 @@
 import crypto from 'crypto';
 import * as hi from 'hookedin-lib';
 
-const nonceDuration = 30 * 1000; // 30 seconds in ms
+
+// TODO: store nocnces in db..
+
+const nonceDuration = 60 * 1000; // 1 minute
 
 const nonceMap = new Map<string, hi.PrivateKey>();
 
