@@ -21,11 +21,11 @@
     "ts-node": "^7.0.1"
   },
   "dependencies": {
-    "@types/node": "^10.14.4",
+    "@types/node": "^10.14.5",
     "@types/pg": "^7.4.14",
     "hookedin-lib": "git+https://github.com/hookedin/hookedin-lib.git",
     "pg": "^7.10.0",
-    "typescript": "^3.4.4"
+    "typescript": "^3.4.5"
   },
   "engines": {
     "node": "11.x"

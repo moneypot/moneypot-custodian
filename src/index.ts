@@ -7,7 +7,7 @@ import makeTransfer from './routes/make-transfer';
 import transfer from './routes/transfer';
 import coin from './routes/coin';
 import bountiesByClaimant from './routes/bounties-by-claimant';
-import homepage from './routes/homepage';
+import index from './routes/index';
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -16,7 +16,7 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
   }
 
   if (url === '/') {
-    return homepage();
+    return index();
   }
 
   if (url.startsWith('/transfers/')) {
