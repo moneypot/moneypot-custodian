@@ -1,8 +1,5 @@
-import * as hi from 'hookedin-lib'
-import custodianInfo, { ackSecretKey } from '../custodian-info'
-
-const ackCustodianInfo: hi.AcknowledgedCustodianInfo = hi.Acknowledged.acknowledge(custodianInfo, ackSecretKey)
+import custodianInfo from '../custodian-info';
 
 export default function() {
-  return ackCustodianInfo.toPOD();
+  return custodianInfo.toPOD();
 }

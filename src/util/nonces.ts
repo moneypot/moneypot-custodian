@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import * as hi from 'hookedin-lib';
 
-
 // TODO: store nocnces in db..
 
 const nonceDuration = 60 * 1000; // 1 minute

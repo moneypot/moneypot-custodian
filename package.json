@@ -16,12 +16,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "nodemon": "^1.18.11",
+    "nodemon": "^1.19.0",
     "prettier": "^1.17.0",
     "ts-node": "^7.0.1"
   },
   "dependencies": {
-    "@types/node": "^10.14.5",
+    "@types/node": "^10.14.6",
     "@types/pg": "^7.4.14",
     "hookedin-lib": "git+https://github.com/hookedin/hookedin-lib.git",
     "pg": "^7.10.0",
