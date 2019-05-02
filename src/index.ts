@@ -59,13 +59,15 @@ async function constTime<T>(ms: number, f: () => Promise<T>): Promise<T> {
   return result;
 }
 
+const isProd = process.env.NODE_ENV === 'production';
+
 let reqCounter = 0;
 
 const server = http.createServer(async (req, res) => {
   const start = Date.now();
 
   const reqCount = ++reqCounter;
-  console.log(`--> ${req.method} ${req.url} req=${reqCount}`);
+  isProd || console.log(`--> ${req.method} ${req.url} req=${reqCount}`);
 
   let r;
   try {
@@ -92,7 +94,7 @@ const server = http.createServer(async (req, res) => {
 
   const end = Date.now();
 
-  console.log(`<-- ${req.method} ${req.url} req=${reqCount} status=${res.statusCode} time=${end - start}ms`);
+  isProd || console.log(`<-- ${req.method} ${req.url} req=${reqCount} status=${res.statusCode} time=${end - start}ms`);
 
   res.end(r);
 });
