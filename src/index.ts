@@ -67,7 +67,9 @@ const server = http.createServer(async (req, res) => {
   const start = Date.now();
 
   const reqCount = ++reqCounter;
-  isProd || console.log(`--> ${req.method} ${req.url} req=${reqCount}`);
+  if (!isProd) {
+    console.log(`--> ${req.method} ${req.url} req=${reqCount}`);
+  }
 
   let r;
   try {
@@ -94,7 +96,9 @@ const server = http.createServer(async (req, res) => {
 
   const end = Date.now();
 
-  isProd || console.log(`<-- ${req.method} ${req.url} req=${reqCount} status=${res.statusCode} time=${end - start}ms`);
+  if (!isProd) {
+    console.log(`<-- ${req.method} ${req.url} req=${reqCount} status=${res.statusCode} time=${end - start}ms`);
+  }
 
   res.end(r);
 });

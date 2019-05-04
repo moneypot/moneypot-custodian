@@ -8,7 +8,7 @@ export default async function(body: any): Promise<hi.POD.Acknowledged & hi.POD.C
     throw claimReq;
   }
 
-  if (!claimReq.authorization.verify(claimReq.hash().buffer, claimReq.claim.claimant)) {
+  if (!claimReq.verify()) {
     throw 'CLAIMANT_AUTHORIZATION_FAIL';
   }
 
