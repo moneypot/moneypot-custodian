@@ -3,14 +3,15 @@ import * as hi from 'hookedin-lib';
 import { pool } from './util';
 
 export default async function(
-  which: 'bounties' | 'hookins',
+  which: 'change' | 'hookins',
   claimHash: hi.Hash
 ): Promise<(hi.POD.ClaimResponse & hi.POD.Acknowledged) | undefined> {
-  assert(['hookins', 'bounties'].includes(which));
+
+  assert(['hookins', 'change'].includes(which));
 
   const searchRes = await pool.query(
-    `SELECT claim_response
-        FROM bounties WHERE hash = $1 AND claim_response IS NOT NULL`,
+    `SELECT change_claim_response
+        FROM transfers WHERE change_hash = $1 AND change_claim_response IS NOT NULL`,
     [claimHash.toPOD()]
   );
 

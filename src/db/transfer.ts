@@ -11,7 +11,8 @@ export async function insertTransfer(client: pg.PoolClient, transfer: hi.Acknowl
 
   let res;
   try {
-    res = await client.query(`INSERT INTO transfers(hash, transfer) VALUES($1, $2)`, [transferHash, transfer.toPOD()]);
+    res = await client.query(`INSERT INTO transfers(hash, transfer) VALUES($1, $2)`,
+      [transferHash, transfer.toPOD()]);
   } catch (err) {
     if (err.code === '23505') {
       switch (err.constraint) {
@@ -42,26 +43,6 @@ export async function insertTransfer(client: pg.PoolClient, transfer: hi.Acknowl
   }
 
   return 'SUCCESS';
-}
-
-export async function insertBounty(client: pg.PoolClient, bounty: hi.Bounty) {
-  const bountyHash = bounty.hash().toPOD();
-
-  let res;
-  try {
-    res = await client.query(
-      `INSERT INTO bounties(hash, bounty)
-                 VALUES($1, $2)`,
-      [bountyHash, bounty.toPOD()]
-    );
-  } catch (err) {
-    if (err.code === '23505' && err.constraint === 'bounties_pkey') {
-      throw 'BOUNTY_ALREADY_EXISTS';
-    }
-    throw err;
-  }
-
-  assert.strictEqual(res.rowCount, 1);
 }
 
 type TxInfo = { txid: string; hex: string; fee: number };

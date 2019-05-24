@@ -5,7 +5,8 @@ import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 
 export default async function makeTransfer(body: any): Promise<string> {
-  const transfer = hi.FullTransfer.fromPOD(body);
+
+  const transfer = hi.BitcoinTransfer.fromPOD(body);
   if (transfer instanceof Error) {
     throw transfer;
   }
@@ -14,26 +15,21 @@ export default async function makeTransfer(body: any): Promise<string> {
     throw 'INVALID_TRANSFER';
   }
 
-  let send: { hookout: hi.Hookout; transaction: rpcClient.CreateTransactionResult } | undefined;
 
-  if (transfer.output instanceof hi.Hookout) {
-    const hookout = transfer.output;
-    if (!hookout.immediate) {
-      throw 'non-immediate hookouts not yet supported ;(';
-    }
+  const hookout = transfer.output;
 
-    const actualFee = transfer.fee();
-    const feeRate = actualFee / hi.Params.templateTransactionWeight;
 
-    if (feeRate < 0.25) {
-      throw 'fee was ' + feeRate + ' but require a feerate of at least 0.25';
-    }
+  const actualFee = transfer.fee();
+  const feeRate = actualFee / hi.Params.templateTransactionWeight;
 
-    send = {
-      hookout,
-      transaction: await rpcClient.createTransaction(hookout.bitcoinAddress, hookout.amount, feeRate),
-    };
+  if (feeRate < 0.25) {
+    throw 'fee was ' + feeRate + ' but require a feerate of at least 0.25';
   }
+
+  const send = {
+    hookout,
+    transaction: await rpcClient.createTransaction(hookout.bitcoinAddress, hookout.amount, feeRate),
+  };
 
   const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
     transfer.prune(),
@@ -48,20 +44,9 @@ export default async function makeTransfer(body: any): Promise<string> {
     }
     assert.strictEqual(insertRes, 'SUCCESS');
 
-    await dbTransfer.insertBounty(dbClient, transfer.change);
 
-    if (transfer.output instanceof hi.Hookout) {
-      if (!send) {
-        throw new Error('assertion failure');
-      }
+    await dbTransfer.insertTransactionHookout(dbClient, send.hookout, send.transaction);
 
-      await dbTransfer.insertTransactionHookout(dbClient, send.hookout, send.transaction);
-    } else if (transfer.output instanceof hi.Bounty) {
-      await dbTransfer.insertBounty(dbClient, transfer.output);
-    } else {
-      const _unreachable: never = transfer.output;
-      throw new Error('unreachable!');
-    }
   });
 
   if (send) {

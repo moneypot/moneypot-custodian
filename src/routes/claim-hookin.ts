@@ -3,34 +3,45 @@ import * as rpcClient from '../util/rpc-client';
 
 import * as nonceLookup from '../util/nonces';
 
+import dbLookupHookin from '../db/lookup-hookin';
+
 import dbClaim from '../db/claim';
 import { pool } from '../db/util';
 
+// body should be { hookin, claimRequest }
 // returns an acknowledgement
 export default async function(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
-  const claimReq = hi.ClaimHookinRequest.fromPOD(body);
-  if (claimReq instanceof Error) {
-    throw claimReq;
+
+  if (typeof body !== 'object') {
+    throw 'CLAIM_HOOKIN_EXPECTED_OJBECT';
   }
 
-  if (!claimReq.authorization.verify(claimReq.hash().buffer, claimReq.claim.claimant)) {
-    throw 'CLAIMANT_AUTHORIZATION_FAIL';
+  const hookin = hi.Hookin.fromPOD(body.hookin);
+  if (hookin instanceof Error) {
+    throw hookin;
   }
-
-  const hookin = claimReq.claim;
 
   const txOut = await rpcClient.getTxOut(hookin.txid, hookin.vout);
-
-  // TODO: validate it exists
-
-  // TODO: require a certain amount of confs..
-  // const { confirmations } = txOut.result;
 
   const expectedAddress = hi.Params.fundingPublicKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
   if (expectedAddress !== txOut.address) {
     console.warn('Expected address: ', expectedAddress, ' got address: ', txOut.address);
-    throw 'INVALID_TRANSACTION_HOOKIN';
+    throw 'INVALID_HOOKIN';
   }
+
+
+  // TODO: require a certain amount of confs..
+  // const { confirmations } = txOut.result;
+
+  const claimReq = hi.ClaimRequest.fromPOD(body.claimRequest);
+  if (claimReq instanceof Error) {
+    throw claimReq;
+  }
+
+  if (!claimReq.authorization.verify(hookin.hash().buffer, hookin.claimant)) {
+    throw 'CLAIMANT_AUTHORIZATION_FAIL';
+  }
+
 
   const ackResponse = await dbClaim(claimReq);
 

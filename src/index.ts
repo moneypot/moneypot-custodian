@@ -1,12 +1,12 @@
 import http from 'http';
 import genNonces from './routes/gen-nonces';
 import readJson from './util/read-json';
-import claimBounty from './routes/claim-bounty';
+import claimChange from './routes/claim-transfer-change';
 import claimHookin from './routes/claim-hookin';
 import makeTransfer from './routes/make-transfer';
 import transfer from './routes/transfer';
 import coin from './routes/coin';
-import bountiesByClaimant from './routes/bounties-by-claimant';
+import changeByClaimant from './routes/change-by-claimant';
 import index from './routes/index';
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
@@ -23,8 +23,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
     return transfer(url);
   } else if (url.startsWith('/coin/')) {
     return coin(url);
-  } else if (url.startsWith('/bounties/claimants/')) {
-    return bountiesByClaimant(url);
+  } else if (url.startsWith('/change/claimants/')) {
+    return changeByClaimant(url);
   }
 
   if (req.method === 'POST') {
@@ -32,8 +32,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
     switch (url) {
       case '/gen-nonces':
         return await genNonces(body);
-      case '/claim-bounty':
-        return await claimBounty(body);
+      case '/claim-transfer-change':
+        return await claimChange(body);
       case '/claim-hookin':
         return await claimHookin(body);
       case '/transfer':

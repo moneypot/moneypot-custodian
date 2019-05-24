@@ -5,10 +5,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 
 CREATE TABLE transfers(
-  hash             text        PRIMARY KEY,
-  transfer         jsonb       NOT NULL, -- acknowledged transfer
-  created          timestamptz     NULL DEFAULT NOW() -- prunable
+  hash                  text        PRIMARY KEY,
+  transfer              jsonb       NOT NULL, -- acknowledged transfer
+  created               timestamptz     NULL DEFAULT NOW() -- prunable
 );
+
+CREATE INDEX transfers_change_claimant_idx ON transfers((transfer->'change'->>'claimant')); 
+
 
 -- this transfer_inputs is really just to provide the unique constraint on input owners :P
 CREATE TABLE transfer_inputs(
@@ -19,21 +22,17 @@ CREATE INDEX transfer_inputs_transfer_hash_idx ON transfer_inputs(transfer_hash)
 
 CREATE TABLE hookins(
   hash                        text            PRIMARY KEY,
-  claim_response              jsonb           NOT NULL,  -- ack'd claim_response
-  hookin                      jsonb               NULL,   -- can be pruned (only AFER it's been spent... )
-  imported                    boolean         NOT NULL DEFAULT false
+  hookin                      jsonb               NULL,   -- can be pruned (only AFER it's imported and AFTER it's safely been spent... )  
+  imported                    boolean         NOT NULL DEFAULT false, -- into wallet
+  created                     timestamptz         NULL DEFAULT NOW() -- prunable (for debug..)
 );
+CREATE INDEX hookins_txid_idx ON hookins((hookin->>'txid'));
 
-
-CREATE TABLE bounties(
-  hash                              text             PRIMARY KEY,
-  bounty                            jsonb            NOT NULL,
-  -- the claim response actually contains the claim request ;D
-  claim_response                    jsonb                NULL -- ack'd. only exists if it's been claimed...
+CREATE TABLE claims(
+  hash            text         PRIMARY KEY, -- hash of what's being claimed (either a transfer-change or hookin)
+  response        jsonb        NOT NULL,  -- ack'd claim_response
+  created         timestamptz  NULL DEFAULT NOW() -- prunable (for debug..)
 );
-
-CREATE INDEX bounties_bounty_claimant_idx ON bounties((bounty->>'claimant'), (claim_response IS NULL)); 
-
 
 
 
