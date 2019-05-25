@@ -32,14 +32,15 @@ export default async function(claimRequest: hi.ClaimRequest): Promise<hi.POD.Ack
     hi.Params.acknowledgementPrivateKey
   );
 
-  // TODO: insert or in conflict return
-  const res = await pool.query(
-    `
-    INSERT INTO claims(hash, response) VALUES($1, $2) ON CONFLICT(hash) DO NOTHING;
-    SELECT response FROM claims WHERE has = $1;
-  `,
-    [claimRequest.claimHash.toPOD(), ackClaimResponse.toPOD()]
+  const claimHash: string = claimRequest.claimHash.toPOD();
+
+  await pool.query(`INSERT INTO claims(hash, response) VALUES($1, $2) ON CONFLICT(hash) DO NOTHING`,
+    [claimHash, ackClaimResponse.toPOD()]
   );
+
+
+  // TODO: insert or in conflict return
+  const res = await pool.query(`SELECT response FROM claims WHERE hash = $1`, [claimHash]);
 
   assert(res.rowCount === 1);
 

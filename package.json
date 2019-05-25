@@ -16,7 +16,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "nodemon": "^1.19.0",
+    "nodemon": "^1.19.1",
     "prettier": "^1.17.1",
     "ts-node": "^7.0.1"
   },
