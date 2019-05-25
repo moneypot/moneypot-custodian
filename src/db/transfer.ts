@@ -11,8 +11,7 @@ export async function insertTransfer(client: pg.PoolClient, transfer: hi.Acknowl
 
   let res;
   try {
-    res = await client.query(`INSERT INTO transfers(hash, transfer) VALUES($1, $2)`,
-      [transferHash, transfer.toPOD()]);
+    res = await client.query(`INSERT INTO transfers(hash, transfer) VALUES($1, $2)`, [transferHash, transfer.toPOD()]);
   } catch (err) {
     if (err.code === '23505') {
       switch (err.constraint) {

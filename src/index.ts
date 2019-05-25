@@ -1,7 +1,7 @@
 import http from 'http';
 import genNonces from './routes/gen-nonces';
 import readJson from './util/read-json';
-import claimChange from './routes/claim-transfer-change';
+import claimTransferChange from './routes/claim-transfer-change';
 import claimHookin from './routes/claim-hookin';
 import makeTransfer from './routes/make-transfer';
 import transfer from './routes/transfer';
@@ -33,7 +33,7 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
       case '/gen-nonces':
         return await genNonces(body);
       case '/claim-transfer-change':
-        return await claimChange(body);
+        return await claimTransferChange(body);
       case '/claim-hookin':
         return await claimHookin(body);
       case '/transfer':

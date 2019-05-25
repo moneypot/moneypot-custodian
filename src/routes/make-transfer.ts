@@ -5,7 +5,6 @@ import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 
 export default async function makeTransfer(body: any): Promise<string> {
-
   const transfer = hi.BitcoinTransfer.fromPOD(body);
   if (transfer instanceof Error) {
     throw transfer;
@@ -15,9 +14,7 @@ export default async function makeTransfer(body: any): Promise<string> {
     throw 'INVALID_TRANSFER';
   }
 
-
   const hookout = transfer.output;
-
 
   const actualFee = transfer.fee();
   const feeRate = actualFee / hi.Params.templateTransactionWeight;
@@ -44,9 +41,7 @@ export default async function makeTransfer(body: any): Promise<string> {
     }
     assert.strictEqual(insertRes, 'SUCCESS');
 
-
     await dbTransfer.insertTransactionHookout(dbClient, send.hookout, send.transaction);
-
   });
 
   if (send) {

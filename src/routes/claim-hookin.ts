@@ -11,7 +11,6 @@ import { pool } from '../db/util';
 // body should be { hookin, claimRequest }
 // returns an acknowledgement
 export default async function(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
-
   if (typeof body !== 'object') {
     throw 'CLAIM_HOOKIN_EXPECTED_OJBECT';
   }
@@ -29,7 +28,6 @@ export default async function(body: any): Promise<hi.POD.Acknowledged & hi.POD.C
     throw 'INVALID_HOOKIN';
   }
 
-
   // TODO: require a certain amount of confs..
   // const { confirmations } = txOut.result;
 
@@ -41,7 +39,6 @@ export default async function(body: any): Promise<hi.POD.Acknowledged & hi.POD.C
   if (!claimReq.authorization.verify(hookin.hash().buffer, hookin.claimant)) {
     throw 'CLAIMANT_AUTHORIZATION_FAIL';
   }
-
 
   const ackResponse = await dbClaim(claimReq);
 

@@ -6,7 +6,6 @@ export default async function(
   which: 'change' | 'hookins',
   claimHash: hi.Hash
 ): Promise<(hi.POD.ClaimResponse & hi.POD.Acknowledged) | undefined> {
-
   assert(['hookins', 'change'].includes(which));
 
   const searchRes = await pool.query(

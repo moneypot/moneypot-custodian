@@ -4,7 +4,6 @@ import * as hi from 'hookedin-lib';
 import { pool } from './util';
 
 export default async function(hash: string): Promise<hi.Hookin | undefined> {
-
   const res = await pool.query(`SELECT hookin FROM hookins WHERE hash = $1`, [hash]);
 
   if (res.rows.length === 0) {
