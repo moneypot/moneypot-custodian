@@ -8,6 +8,9 @@ import transfer from './routes/transfer';
 import coin from './routes/coin';
 import changeByClaimant from './routes/change-by-claimant';
 import index from './routes/index';
+import feeSchedule from './routes/fee-schedule';
+
+
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -15,10 +18,12 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
     throw new Error('404: missing url');
   }
 
-  if (url === '/') {
-    return index();
+  switch (url) {
+    case '/':
+        return index();
+    case '/fee-schedule':
+        return await feeSchedule();
   }
-
   if (url.startsWith('/transfers/')) {
     return transfer(url);
   } else if (url.startsWith('/coin/')) {
@@ -38,6 +43,7 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         return await claimHookin(body);
       case '/transfer':
         return await makeTransfer(body);
+
     }
   }
 }

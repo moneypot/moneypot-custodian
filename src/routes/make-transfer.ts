@@ -31,7 +31,7 @@ export default async function makeTransfer(body: any): Promise<string> {
     throw 'fee was ' + feeRate + ' but require a feerate of at least 0.25';
   }
 
-  const sendTransaction = await rpcClient.createTransaction(hookout.bitcoinAddress, hookout.amount, feeRate);
+  const sendTransaction = await rpcClient.createSmartTransaction(hookout.bitcoinAddress, hookout.amount, feeRate);
 
   const ackTransfer: hi.AcknowledgedTransfer = hi.Acknowledged.acknowledge(
     transfer,

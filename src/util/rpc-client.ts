@@ -1,5 +1,6 @@
 import assert from 'assert';
 import * as hi from 'hookedin-lib';
+import * as coinsayer from './coinsayer';
 
 import JSONRpcClient from './jsonrpc';
 
@@ -10,6 +11,25 @@ let jsonClient = new JSONRpcClient(
   '7eb0be46532a36b1e7a2d86bac99b4d78c238fe470a3c0f86b113677e07a744b',
   'beef54c52615f195fced6b89ee4677a2324b6b34d29d79e645546e09dab161f8'
 );
+
+
+
+interface Unspent {
+  txid: string;
+  vout: number;
+  address: string;
+  amount: number;
+}
+export async function listUnspent(): Promise<Unspent[]> {
+  const unspent = await jsonClient.call('listunspent', {});
+
+  return unspent.filter((c: any) => c.spendable && c.confirmations > 0).map((c: any) => ({
+    txid: c.txid,
+    vout: c.vout,
+    address: c.address,
+    amount: Math.round(c.amount * 1e8),
+  }));
+}
 
 export async function getBalance(): Promise<number> {
   const b: number = await jsonClient.call('getbalance', {});
@@ -96,48 +116,121 @@ export async function getConsolidationFeeRate() {
   return await getFeeRate(144, 'ECONOMICAL');
 }
 
+
+export async function getChangeAddress(): Promise<string> {
+  return await jsonClient.call('getrawchangeaddress', { address_type: 'bech32' });
+}
+
+
 export type CreateTransactionResult = { txid: string; hex: string; fee: number };
 
-export async function createTransaction(to: string, amount: number, feeRate: number): Promise<CreateTransactionResult> {
-  const inBtc = (amount / 1e8).toFixed(8);
-  const fmtdFeeRate = ((feeRate / 1e8) * 4000).toFixed(8); // convert to bitcoin per 1000 vByte
 
-  const outputs = { [to]: inBtc };
+export async function createSmartTransaction(to: string, amount: number, feeRate: number) {
+  
+  let unspent = await listUnspent();
+  let consolidationFeeRate = await getConsolidationFeeRate();
+  
+  const outputWeight = 121;
+  const inputWeight = 271;
 
-  const rawTx = await jsonClient.call('createrawtransaction', { inputs: [], outputs });
-  if (typeof rawTx !== 'string') {
+  console.log('conlidation fee rate: ', consolidationFeeRate, ' fee rate ', feeRate)
+
+  const p: coinsayer.Problem = {
+    minFeeRate: 0.25,
+    consolidationFeeRate,
+    fixedWeight: 48,
+    changeWeight: outputWeight,
+    changeSpendWeight: inputWeight,
+    minAbsoluteFee: 0,
+    maxInputsToSelect: 7,
+    minChangeAmount: 54600, // super overkill
+    timeout: 10, // second
+    mandatoryInputConflicts: [],
+    inputs: unspent.map(c => ({
+      identifier: `${c.txid}_${c.vout}`,
+      weight: inputWeight,
+      amount: c.amount
+    })),
+    outputs: [
+      { identifier: 'dest', weight: outputWeight, amount, requirement: 'M' }
+    ]
+  }
+  const res = await coinsayer.req(p);
+  console.log('got result: ', res);
+  
+
+
+  const inputs = res.inputs.map(id => {
+    const [txid, vout] = id.split('_');
+    return { txid,  vout: Number.parseInt(vout) }
+  });
+  const outputs = { [to]: (amount / 1e8).toFixed(8) };
+
+  if (res.changeAmount > 0) {
+    const changeAddress = await getChangeAddress();
+    outputs[changeAddress] = (res.changeAmount / 1e8).toFixed(8)
+  }
+
+  let hexstring = await jsonClient.call('createrawtransaction', { inputs, outputs });
+  if (typeof hexstring !== 'string') {
     throw new Error('expected rawTx from createRawTransaction to be a hex string');
   }
 
-  const res = await jsonClient.call('fundrawtransaction', { hexstring: rawTx, options: { feeRate: fmtdFeeRate } });
-  if (typeof res !== 'object') {
-    throw new Error('fund raw transaction result expected object');
-  }
-
-  let { hex, fee } = res;
-
-  if (typeof hex !== 'string') {
-    throw new Error('expected transaction hex in string format');
-  }
-
-  if (typeof fee !== 'number' || fee < 0) {
-    throw new Error('fee should be a number');
-  }
-
-  const feeInSats = Math.round(fee * 1e8);
-
-  const signRes = await jsonClient.call('signrawtransactionwithwallet', { hexstring: hex });
+  console.log('raw tx: ', hexstring);
+  
+  const signRes = await jsonClient.call('signrawtransactionwithwallet', { hexstring });
   assert.strictEqual(signRes.complete, true);
-  hex = signRes.hex;
+  hexstring = signRes.hex;
 
-  const decodeRes = await jsonClient.call('decoderawtransaction', { hexstring: hex });
+  const decodeRes = await jsonClient.call('decoderawtransaction', { hexstring });
   const { txid } = decodeRes;
   if (typeof txid !== 'string' || txid.length === 0) {
     throw new Error('expected txid to be a string');
   }
 
-  return { txid, hex, fee: feeInSats };
+  return { txid, hex: hexstring, fee: res.miningFee };
 }
+
+// export async function createTransaction(to: string, amount: number, feeRate: number): Promise<CreateTransactionResult> {
+//   const inBtc = (amount / 1e8).toFixed(8);
+//   const fmtdFeeRate = ((feeRate / 1e8) * 4000).toFixed(8); // convert to bitcoin per 1000 vByte
+
+//   const outputs = { [to]: inBtc };
+
+//   const rawTx = await jsonClient.call('createrawtransaction', { inputs: [], outputs });
+//   if (typeof rawTx !== 'string') {
+//     throw new Error('expected rawTx from createRawTransaction to be a hex string');
+//   }
+
+//   const res = await jsonClient.call('fundrawtransaction', { hexstring: rawTx, options: { feeRate: fmtdFeeRate } });
+//   if (typeof res !== 'object') {
+//     throw new Error('fund raw transaction result expected object');
+//   }
+
+//   let { hex, fee } = res;
+
+//   if (typeof hex !== 'string') {
+//     throw new Error('expected transaction hex in string format');
+//   }
+
+//   if (typeof fee !== 'number' || fee < 0) {
+//     throw new Error('fee should be a number');
+//   }
+
+//   const feeInSats = Math.round(fee * 1e8);
+
+//   const signRes = await jsonClient.call('signrawtransactionwithwallet', { hexstring: hex });
+//   assert.strictEqual(signRes.complete, true);
+//   hex = signRes.hex;
+
+//   const decodeRes = await jsonClient.call('decoderawtransaction', { hexstring: hex });
+//   const { txid } = decodeRes;
+//   if (typeof txid !== 'string' || txid.length === 0) {
+//     throw new Error('expected txid to be a string');
+//   }
+
+//   return { txid, hex, fee: feeInSats };
+// }
 
 export async function sendRawTransaction(hexstring: string): Promise<string> {
   const txHash = await jsonClient.call('sendrawtransaction', { hexstring });
