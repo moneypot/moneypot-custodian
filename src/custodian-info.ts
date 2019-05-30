@@ -18,8 +18,7 @@ const custodianInfo = new hi.CustodianInfo(
   blindingSecretKeys.map(bs => bs.toPublicKey())
 );
 
-const ackCustodianInfo: hi.AcknowledgedCustodianInfo = hi.Acknowledged.acknowledge(custodianInfo, ackSecretKey);
-export default ackCustodianInfo;
+export default custodianInfo;
 
 function computePrivKey(prefix: string) {
   const bytes = hi.Hash.fromMessage(prefix, custodianSecretSeed);

@@ -1,16 +1,12 @@
 import * as hi from 'hookedin-lib';
 import * as rpcClient from '../util/rpc-client';
 
-import * as nonceLookup from '../util/nonces';
-
-import dbLookupHookin from '../db/lookup-hookin';
-
 import dbClaim from '../db/claim';
 import { pool } from '../db/util';
 
 // body should be { hookin, claimRequest }
 // returns an acknowledgement
-export default async function(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
+export default async function(body: any): Promise<hi.POD.ClaimResponse> {
   if (typeof body !== 'object') {
     throw 'CLAIM_HOOKIN_EXPECTED_OJBECT';
   }

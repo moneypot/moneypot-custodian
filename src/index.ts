@@ -3,14 +3,12 @@ import genNonces from './routes/gen-nonces';
 import readJson from './util/read-json';
 import claimTransferChange from './routes/claim-transfer-change';
 import claimHookin from './routes/claim-hookin';
-import makeTransfer from './routes/make-transfer';
+import transferHookout from './routes/transfer-hookout';
 import transfer from './routes/transfer';
 import coin from './routes/coin';
 import changeByClaimant from './routes/change-by-claimant';
 import index from './routes/index';
 import feeSchedule from './routes/fee-schedule';
-
-
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -20,9 +18,9 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
 
   switch (url) {
     case '/':
-        return index();
+      return index();
     case '/fee-schedule':
-        return await feeSchedule();
+      return await feeSchedule();
   }
   if (url.startsWith('/transfers/')) {
     return transfer(url);
@@ -42,8 +40,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
       case '/claim-hookin':
         return await claimHookin(body);
       case '/transfer':
-        return await makeTransfer(body);
-
+        return await transferHookout(body);
+      case '/transfer-feebump':
     }
   }
 }

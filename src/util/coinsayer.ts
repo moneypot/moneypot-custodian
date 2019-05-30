@@ -11,8 +11,8 @@ export interface Problem {
   minChangeAmount: number;
   timeout: number; // seconds
   mandatoryInputConflicts: Array<Array<string>>;
-  inputs: { identifier: string, weight: number, amount: number}[];
-  outputs: { identifier: string, weight: number, amount: number, requirement: string }[]
+  inputs: { identifier: string; weight: number; amount: number }[];
+  outputs: { identifier: string; weight: number; amount: number; requirement: string }[];
 }
 
 export interface Selection {
@@ -26,25 +26,22 @@ export interface Selection {
 }
 
 export function req(p: Problem): Promise<Selection> {
-
   return new Promise((resolve, reject) => {
-
     const options = {
       hostname: 'freeapi.coinsayer.com',
       path: '/v1/solve-problem',
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
-      }
-    }
-  
-    const req = https.request(options, res => {
+        'Content-Type': 'application/json',
+      },
+    };
 
+    const req = https.request(options, res => {
       res.setEncoding('utf8');
 
       let body = '';
 
-      res.on('data', (chunk) => {
+      res.on('data', chunk => {
         body += chunk;
       });
       res.on('end', () => {
@@ -64,19 +61,12 @@ export function req(p: Problem): Promise<Selection> {
         }
 
         resolve(obj);
-
-      });  
+      });
     });
 
     req.on('error', reject);
 
-
     req.write(JSON.stringify(p));
     req.end();
-  })
-
-
-
+  });
 }
-
-

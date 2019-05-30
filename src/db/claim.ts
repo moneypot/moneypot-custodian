@@ -3,7 +3,7 @@ import assert from 'assert';
 import { pool } from './util';
 import * as nonceLookup from '../util/nonces';
 
-export default async function(claimRequest: hi.ClaimRequest): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
+export default async function(claimRequest: hi.ClaimRequest): Promise<hi.POD.ClaimResponse> {
   const coinRequests = claimRequest.coinRequests;
 
   const blindingNonces = coinRequests.map(coin => coin.blindingNonce.toPOD());
@@ -27,22 +27,22 @@ export default async function(claimRequest: hi.ClaimRequest): Promise<hi.POD.Ack
     blindedExistenceProofs.push(blindedExistenceProof);
   }
 
-  const ackClaimResponse: hi.AcknowledgedClaimResponse = hi.Acknowledged.acknowledge(
-    new hi.ClaimResponse(claimRequest, blindedExistenceProofs),
-    hi.Params.acknowledgementPrivateKey
-  );
+  // const ackClaimResponse: hi.AcknowledgedClaimResponse = hi.Acknowledged.acknowledge(
+  //   new hi.ClaimResponse(claimRequest, blindedExistenceProofs),
+  //   hi.Params.acknowledgementPrivateKey
+  // );
 
   const claimHash: string = claimRequest.claimHash.toPOD();
 
-  await pool.query(`INSERT INTO claims(hash, response) VALUES($1, $2) ON CONFLICT(hash) DO NOTHING`,
-    [claimHash, ackClaimResponse.toPOD()]
-  );
-
+  await pool.query(`INSERT INTO claims(hash, response) VALUES($1, $2) ON CONFLICT(hash) DO NOTHING`, [
+    claimHash,
+    new hi.ClaimResponse(claimRequest, blindedExistenceProofs).toPOD(),
+  ]);
 
   // TODO: insert or in conflict return
   const res = await pool.query(`SELECT response FROM claims WHERE hash = $1`, [claimHash]);
 
   assert(res.rowCount === 1);
 
-  return res.rows[0]['response'] as hi.POD.Acknowledged & hi.POD.ClaimResponse;
+  return res.rows[0]['response'] as hi.POD.ClaimResponse;
 }

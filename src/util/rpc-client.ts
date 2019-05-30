@@ -12,8 +12,6 @@ let jsonClient = new JSONRpcClient(
   'beef54c52615f195fced6b89ee4677a2324b6b34d29d79e645546e09dab161f8'
 );
 
-
-
 interface Unspent {
   txid: string;
   vout: number;
@@ -23,12 +21,14 @@ interface Unspent {
 export async function listUnspent(): Promise<Unspent[]> {
   const unspent = await jsonClient.call('listunspent', {});
 
-  return unspent.filter((c: any) => c.spendable && c.confirmations > 0).map((c: any) => ({
-    txid: c.txid,
-    vout: c.vout,
-    address: c.address,
-    amount: Math.round(c.amount * 1e8),
-  }));
+  return unspent
+    .filter((c: any) => c.spendable && c.confirmations > 0)
+    .map((c: any) => ({
+      txid: c.txid,
+      vout: c.vout,
+      address: c.address,
+      amount: Math.round(c.amount * 1e8),
+    }));
 }
 
 export async function getBalance(): Promise<number> {
@@ -116,59 +116,85 @@ export async function getConsolidationFeeRate() {
   return await getFeeRate(144, 'ECONOMICAL');
 }
 
-
 export async function getChangeAddress(): Promise<string> {
   return await jsonClient.call('getrawchangeaddress', { address_type: 'bech32' });
 }
 
+export async function getMemPoolEntryFee(txid: string): Promise<number | undefined> {
+  // TODO: catch transaction not in mempool, and return undefined
+  let res;
+  try {
+    res = await jsonClient.call('getmempoolentry', { txid });
+  } catch (err) {
+    console.warn('getmempoolfee error: ', err);
+    return undefined;
+  }
+
+  const baseFeeInBitcoin = res.fees.base;
+  assert(Number.isFinite(baseFeeInBitcoin));
+
+  return Math.round(baseFeeInBitcoin * 1e8);
+}
+
+export async function bumpFee(txid: string, totalFee: number) {
+  const res = await jsonClient.call('bumpfee', { totalFee });
+  console.log('fee bump result: ', res);
+}
+
+function addressType(address: string) {
+  if (address.startsWith('1') || address.startsWith('m') || address.startsWith('n')) {
+    return 'legacy';
+  }
+  if (address.startsWith('2') || address.startsWith('3')) {
+    return 'p2sh';
+  }
+  if (address.startsWith('tb1') || address.startsWith('bc1')) {
+    return 'bech32';
+  }
+
+  throw new Error('unrecognized address: ' + address);
+}
 
 export type CreateTransactionResult = { txid: string; hex: string; fee: number };
 
-
 export async function createSmartTransaction(to: string, amount: number, feeRate: number) {
-  
   let unspent = await listUnspent();
-  let consolidationFeeRate = await getConsolidationFeeRate();
-  
-  const outputWeight = 121;
-  const inputWeight = 271;
+  let consolidationFeeRate = 200; // await getConsolidationFeeRate();
 
-  console.log('conlidation fee rate: ', consolidationFeeRate, ' fee rate ', feeRate)
+  const outputWeight = 128;
+  const nativeInputWeight = 271;
+  const wrappedSegwitWeight = 368;
 
   const p: coinsayer.Problem = {
     minFeeRate: 0.25,
     consolidationFeeRate,
     fixedWeight: 48,
     changeWeight: outputWeight,
-    changeSpendWeight: inputWeight,
+    changeSpendWeight: nativeInputWeight,
     minAbsoluteFee: 0,
-    maxInputsToSelect: 7,
+    maxInputsToSelect: 50,
     minChangeAmount: 54600, // super overkill
     timeout: 10, // second
     mandatoryInputConflicts: [],
     inputs: unspent.map(c => ({
       identifier: `${c.txid}_${c.vout}`,
-      weight: inputWeight,
-      amount: c.amount
+      weight: addressType(c.address) === 'bech32' ? nativeInputWeight : wrappedSegwitWeight,
+      amount: c.amount,
     })),
-    outputs: [
-      { identifier: 'dest', weight: outputWeight, amount, requirement: 'M' }
-    ]
-  }
+    outputs: [{ identifier: 'dest', weight: outputWeight, amount, requirement: 'M' }],
+  };
   const res = await coinsayer.req(p);
   console.log('got result: ', res);
-  
-
 
   const inputs = res.inputs.map(id => {
     const [txid, vout] = id.split('_');
-    return { txid,  vout: Number.parseInt(vout) }
+    return { txid, vout: Number.parseInt(vout) };
   });
   const outputs = { [to]: (amount / 1e8).toFixed(8) };
 
   if (res.changeAmount > 0) {
     const changeAddress = await getChangeAddress();
-    outputs[changeAddress] = (res.changeAmount / 1e8).toFixed(8)
+    outputs[changeAddress] = (res.changeAmount / 1e8).toFixed(8);
   }
 
   let hexstring = await jsonClient.call('createrawtransaction', { inputs, outputs });
@@ -176,8 +202,6 @@ export async function createSmartTransaction(to: string, amount: number, feeRate
     throw new Error('expected rawTx from createRawTransaction to be a hex string');
   }
 
-  console.log('raw tx: ', hexstring);
-  
   const signRes = await jsonClient.call('signrawtransactionwithwallet', { hexstring });
   assert.strictEqual(signRes.complete, true);
   hexstring = signRes.hex;

@@ -3,9 +3,7 @@ import assert from 'assert';
 import * as hi from 'hookedin-lib';
 import { pool } from './util';
 
-type AckedTransfer = hi.POD.Transfer & hi.POD.Acknowledged;
-
-export async function byHash(hash: string): Promise<AckedTransfer | undefined> {
+export async function byHash(hash: string): Promise<hi.POD.Transfer | undefined> {
   const res = await pool.query(`SELECT transfer FROM transfers WHERE hash = $1`, [hash]);
 
   if (res.rows.length === 0) {

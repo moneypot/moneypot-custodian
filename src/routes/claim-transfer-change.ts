@@ -4,7 +4,7 @@ import dbClaim from '../db/claim';
 
 import * as lookupTransfer from '../db/lookup-transfer';
 
-export default async function(body: any): Promise<hi.POD.Acknowledged & hi.POD.ClaimResponse> {
+export default async function(body: any): Promise<hi.POD.ClaimResponse> {
   const claimReq = hi.ClaimRequest.fromPOD(body);
   if (claimReq instanceof Error) {
     throw claimReq;
