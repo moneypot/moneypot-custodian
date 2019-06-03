@@ -67,6 +67,7 @@ export default async function makeTransfer(body: any): Promise<string> {
   }
 
   if (actualFee !== expectedFee) {
+    console.warn('Got fee of: ', actualFee, ' but expected: ', expectedFee);
     throw 'WRONG_FEE_RATE';
   }
 
