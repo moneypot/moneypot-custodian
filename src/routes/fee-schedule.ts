@@ -6,6 +6,6 @@ export default async function() {
 
   return {
     consolidationFeeRate,
-    immediateFeeRate
+    immediateFeeRate,
   };
 }
