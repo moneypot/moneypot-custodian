@@ -83,13 +83,11 @@ export default async function makeTransfer(body: any): Promise<string> {
 
   let otherHookouts: hi.Hookout[] = [];
 
-  // If we're going to send right now...
+  // If we're going to send right now, lets get some others...
   if (hookout.priority === 'IMMEDIATE' || hookout.priority === 'FREE') {
-    const queryRes = await pool.query(
-      `
-        SELECT hookout FROM hookouts WHERE
-        hookout->>'priorty' = $1
-        processed_by IS NULL
+
+    const queryRes = await pool.query(`SELECT hookout FROM hookouts WHERE
+        hookout->>'priority' = $1 AND processed_by IS NULL
       `,
       [hookout.priority === 'IMMEDIATE' ? 'BATCH' : 'FREE']
     );
