@@ -4,14 +4,14 @@ export default class Mutex {
   }
 
   acquire(): Promise<Releaser> {
-    const ticket = new Promise<Releaser>(resolve => this._queue.push(resolve));
+    return new Promise<Releaser>(resolve => {
+      this._queue.push(resolve);
 
-    if (!this._pending) {
-      this._pending = true;
-      this._dispatchNext();
-    }
-
-    return ticket;
+      if (!this._pending) {
+        this._pending = true;
+        this._dispatchNext();
+      }
+    });
   }
 
   async runExclusive<T>(continuation: () => Promise<T>): Promise<T> {

@@ -60,7 +60,7 @@ export async function ackTransfer(transferHash: string, acknowledgement: string)
 export async function insertHookout(client: pg.PoolClient, hookout: hi.Hookout) {
   await client.query(
     `INSERT INTO hookouts(hash, hookout)
-           VALUES($1, $2, $3)`,
+           VALUES($1, $2)`,
     [hookout.hash().toPOD(), hookout.toPOD()]
   );
 }

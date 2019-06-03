@@ -61,4 +61,5 @@ export default async function makeTransfer(body: any): Promise<string> {
   const acknowledgement = hi.Signature.compute(transfer.hash().buffer, hi.Params.acknowledgementPrivateKey);
 
   await dbTransfer.ackTransfer(transfer.hash().toPOD(), acknowledgement.toPOD());
-  return acknowledgement.toPOD();}
+  return acknowledgement.toPOD();
+}

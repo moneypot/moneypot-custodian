@@ -3,6 +3,7 @@ import * as hi from 'hookedin-lib';
 import * as coinsayer from './coinsayer';
 
 import JSONRpcClient from './jsonrpc';
+import { stringify } from 'querystring';
 
 //let jsonClient = new JSONRpcClient('127.0.0.1', 18332, 'testnetdev', 'l5JwLwtAXnaF');
 let jsonClient = new JSONRpcClient(
@@ -113,7 +114,12 @@ export async function getFeeRate(conf_target: number, estimate_mode: 'ECONOMICAL
 }
 
 export async function getConsolidationFeeRate() {
-  return await getFeeRate(144, 'ECONOMICAL');
+  return 32.25; // dev only
+  //return await getFeeRate(144, 'ECONOMICAL');
+}
+export async function getImmediateFeeRate() {
+  return 49.77; // dev only
+  return await getFeeRate(6, 'ECONOMICAL');
 }
 
 export async function getChangeAddress(): Promise<string> {
@@ -155,21 +161,31 @@ function addressType(address: string) {
   throw new Error('unrecognized address: ' + address);
 }
 
-export type CreateTransactionResult = { txid: string; hex: string; fee: number };
+export type CreateTransactionResult = { txid: string; hex: string; fee: number; allOutputs: hi.Hookout[] };
 
-export async function createSmartTransaction(to: string, amount: number, feeRate: number) {
+// feeRate of 0 means it's consolidation style feeRate
+export async function createSmartTransaction(
+  to: hi.Hookout,
+  optionals: hi.Hookout[],
+  feeRate: number,
+  noChange: boolean
+): Promise<CreateTransactionResult> {
   let unspent = await listUnspent();
-  let consolidationFeeRate = 200; // await getConsolidationFeeRate();
+
+  let consolidationFeeRate = await getConsolidationFeeRate();
+  if (feeRate === 0) {
+    feeRate = Math.max(0.25, consolidationFeeRate * 0.9); // we can't send less than 1 sat/vbyte
+  }
 
   const outputWeight = 128;
   const nativeInputWeight = 271;
   const wrappedSegwitWeight = 368;
 
   const p: coinsayer.Problem = {
-    minFeeRate: 0.25,
+    minFeeRate: feeRate,
     consolidationFeeRate,
     fixedWeight: 48,
-    changeWeight: outputWeight,
+    changeWeight: noChange ? 1e6 : outputWeight, // make it stupid to pick change..
     changeSpendWeight: nativeInputWeight,
     minAbsoluteFee: 0,
     maxInputsToSelect: 50,
@@ -181,16 +197,56 @@ export async function createSmartTransaction(to: string, amount: number, feeRate
       weight: addressType(c.address) === 'bech32' ? nativeInputWeight : wrappedSegwitWeight,
       amount: c.amount,
     })),
-    outputs: [{ identifier: 'dest', weight: outputWeight, amount, requirement: 'M' }],
+    outputs: [
+      { identifier: 'dest', weight: outputWeight, amount: to.amount, requirement: 'M' },
+      ...optionals.map(h => ({
+        identifier: h.hash().toPOD(),
+        weight: outputWeight,
+        amount: h.amount,
+        requirement: 'P',
+      })),
+    ],
   };
   const res = await coinsayer.req(p);
-  console.log('got result: ', res);
+  console.log('got coinsayer result: ', res);
+
+  if (noChange) {
+    if (res.changeAmount !== 0) {
+      console.warn('coinsayer tried to pick change, even when we made it stupid :(');
+      throw 'NO_SOLUTION_FOUND'; // TODO: better support for this directly in coinsayer...
+    }
+
+    if (res.miningFee / res.weight > consolidationFeeRate * 1.01) {
+      console.warn('coinsayer couldnt find a no-change solution without too much sacrifice');
+      throw 'NO_SOLUTION_FOUND';
+    }
+  }
 
   const inputs = res.inputs.map(id => {
     const [txid, vout] = id.split('_');
     return { txid, vout: Number.parseInt(vout) };
   });
-  const outputs = { [to]: (amount / 1e8).toFixed(8) };
+
+  const optLookups = new Map<string, hi.Hookout>();
+  for (const optHookout of optionals) {
+    optLookups.set(optHookout.hash().toPOD(), optHookout);
+  }
+
+  const outputs = { [to.bitcoinAddress]: (to.amount / 1e8).toFixed(8) };
+  const allOutputs: hi.Hookout[] = [];
+
+  for (const o of res.outputs) {
+    if (o === 'dest') {
+      allOutputs.push(to);
+      continue;
+    }
+
+    const identifier = optLookups.get(o);
+    if (!identifier) {
+      throw new Error('could not find opt hookout: ' + identifier);
+    }
+    allOutputs.push(identifier);
+  }
 
   if (res.changeAmount > 0) {
     const changeAddress = await getChangeAddress();
@@ -212,7 +268,7 @@ export async function createSmartTransaction(to: string, amount: number, feeRate
     throw new Error('expected txid to be a string');
   }
 
-  return { txid, hex: hexstring, fee: res.miningFee };
+  return { txid, hex: hexstring, fee: res.miningFee, allOutputs };
 }
 
 // export async function createTransaction(to: string, amount: number, feeRate: number): Promise<CreateTransactionResult> {

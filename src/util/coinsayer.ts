@@ -55,8 +55,7 @@ export function req(p: Problem): Promise<Selection> {
         try {
           obj = JSON.parse(body);
         } catch (err) {
-          console.error('could not parse coinsayer: ', body);
-          reject(new Error('coulnt parse api response'));
+          reject(body);
           return;
         }
 

@@ -35,19 +35,13 @@ CREATE TABLE claims(
   created         timestamptz  NULL DEFAULT NOW() -- prunable (for debug..)
 );
 
--- this is prunable, for logging only, and might be orphaned -
-CREATE TABLE hookouts(
-  hash      text      PRIMARY KEY,
-  hookout   jsonb         NOT NULL,
-  created        timestamptz  NULL DEFAULT NOW()
-);
+
 
 -- SENDING means it's in progress (or locked up)
 -- SENT means it's totally done and pushed onto the network
 CREATE TYPE TRANSACTION_SEND_STATUS_ENUM AS ENUM('SENDING', 'SENT');
 
 -- note these are only the original transaction and NOT the fee bumped ones --
--- this exists for logging only
 CREATE TABLE bitcoin_transactions(
   txid                   text                         PRIMARY KEY,
   hex                    text                         NOT NULL,
@@ -55,6 +49,17 @@ CREATE TABLE bitcoin_transactions(
   status                 TRANSACTION_SEND_STATUS_ENUM NOT NULL,
   created                timestamptz                  NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE hookouts(
+  hash           text      PRIMARY KEY,
+  hookout        jsonb         NOT NULL,
+  processed_by   text              NULL REFERENCES bitcoin_transactions(txid),
+  created        timestamptz  NULL DEFAULT NOW()
+);
+
+CREATE INDEX hookouts_processed_by_idx ON hookouts(processed_by);
+
+
 
 -- entire row is prunable ---
 -- this serves no role other than logging..

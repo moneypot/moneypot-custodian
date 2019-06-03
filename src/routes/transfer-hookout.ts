@@ -1,6 +1,6 @@
-import * as assert from 'assert';
+import assert from 'assert';
 import * as hi from 'hookedin-lib';
-import { withTransaction } from '../db/util';
+import { withTransaction, pool } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 
@@ -29,10 +29,45 @@ export default async function makeTransfer(body: any): Promise<string> {
   }
 
   const actualFee = transfer.inputAmount() - (transfer.change.amount + hookout.amount);
+  if (actualFee < 0) {
+    throw new Error('not possible to create a transfer with negative fee...');
+  }
+
   const feeRate = actualFee / hi.Params.templateTransactionWeight;
 
-  if (feeRate < 0.25) {
-    throw 'fee was ' + feeRate + ' but require a feerate of at least 0.25';
+  const immediateFeeRate = await rpcClient.getImmediateFeeRate();
+
+  let expectedFee;
+  switch (hookout.priority) {
+    case 'IMMEDIATE':
+      expectedFee = Math.round(immediateFeeRate * hi.Params.templateTransactionWeight);
+      break;
+    case 'BATCH':
+      expectedFee = Math.round(immediateFeeRate * 32); // TODO: factor 32 out (it's the size of an output..)
+      break;
+    case 'FREE':
+      if (hookout.amount < 0.01e8) {
+        throw 'min send with free transaction is 0.01 btc!';
+      }
+      if (actualFee !== 0) {
+        throw 'free fees should be 0';
+      }
+      expectedFee = 0;
+      break;
+    case 'CUSTOM':
+      if (feeRate < 0.25) {
+        throw 'fee was ' + feeRate + ' but require a feerate of at least 0.25';
+      }
+      expectedFee = actualFee;
+      // We're going to lave the feeRate as 0, as that's a magic value to mean use consolidation
+      break;
+    default:
+      let _never: never = hookout.priority;
+      throw new Error('unexpected priority');
+  }
+
+  if (actualFee !== expectedFee) {
+    throw 'WRONG_FEE_RATE';
   }
 
   await withTransaction(async dbClient => {
@@ -45,35 +80,91 @@ export default async function makeTransfer(body: any): Promise<string> {
     await dbTransfer.insertHookout(dbClient, hookout);
   });
 
-  let sendTransaction: rpcClient.CreateTransactionResult;
-  try {
-    sendTransaction = await rpcClient.createSmartTransaction(hookout.bitcoinAddress, hookout.amount, feeRate);
-  } catch (err) {
-    console.warn(
-      'could not create the transaction, got: ',
-      hookout.bitcoinAddress,
-      hookout.amount,
-      feeRate,
-      ' error: ',
-      err
+  let otherHookouts: hi.Hookout[] = [];
+
+  // If we're going to send right now...
+  if (hookout.priority === 'IMMEDIATE' || hookout.priority === 'FREE') {
+    const queryRes = await pool.query(
+      `
+        SELECT hookout FROM hookouts WHERE
+        hookout->>'priorty' = $1
+        processed_by IS NULL
+      `,
+      [hookout.priority === 'IMMEDIATE' ? 'BATCH' : 'FREE']
     );
 
-    await withTransaction(async dbClient => {
-      await dbTransfer.removeTransfer(dbClient, transfer.hash().toPOD());
-      await dbTransfer.removeHookout(dbClient, hookout.hash().toPOD());
-    });
+    for (const { hookout } of queryRes.rows) {
+      const h = hi.Hookout.fromPOD(hookout);
+      if (h instanceof Error) {
+        throw h;
+      }
 
-    throw err;
+      otherHookouts.push(h);
+    }
   }
 
-  rpcClient.sendRawTransaction(sendTransaction.hex).catch(err => {
-    console.error(
-      '[INTERNAL_ERROR] [ACTION_REQUIRED] might not be able to have sent transaction: ',
-      sendTransaction,
-      ' got: ',
-      err
-    );
-  });
+  // If not a batch...
+  if (hookout.priority !== 'BATCH') {
+    const noChange = hookout.priority === 'FREE';
+
+    let sendTransaction: rpcClient.CreateTransactionResult;
+    try {
+      sendTransaction = await rpcClient.createSmartTransaction(hookout, otherHookouts, feeRate, noChange);
+    } catch (err) {
+      console.warn(
+        'could not create the transaction, to: ',
+        { hookout: hookout.toPOD(), otherHookouts: otherHookouts.map(h => h.toPOD), feeRate, noChange },
+        'got error: ',
+        err
+      );
+
+      await withTransaction(async dbClient => {
+        await dbTransfer.removeTransfer(dbClient, transfer.hash().toPOD());
+        await dbTransfer.removeHookout(dbClient, hookout.hash().toPOD());
+      });
+
+      if (err === 'NO_SOLUTION_FOUND') {
+        throw 'HOT_WALLET_EMPTY';
+      }
+
+      throw err;
+    }
+
+    await withTransaction(async dbClient => {
+      await dbClient.query(
+        `INSERT INTO bitcoin_transactions(txid, hex, fee, status)
+        VALUES($1, $2, $3, 'SENDING')
+      `,
+        [sendTransaction.txid, sendTransaction.hex, sendTransaction.fee]
+      );
+
+      for (const hookout of sendTransaction.allOutputs) {
+        const res = await dbClient.query(
+          `UPDATE hookouts SET processed_by = $1 WHERE hash = $2 AND processed_by IS NULL`,
+          [sendTransaction.txid, hookout.hash().toPOD()]
+        );
+        if (res.rowCount !== 1) {
+          throw new Error('could not update hookout ');
+        }
+      }
+    });
+
+    // actually send
+    (async () => {
+      try {
+        await rpcClient.sendRawTransaction(sendTransaction.hex);
+        await pool.query(`UPDATE bitcoin_transactions SET status = 'SENT' WHERE txid = $1`, [sendTransaction.txid]);
+      } catch (err) {
+        console.error(
+          '[INTERNAL_ERROR] [ACTION_REQUIRED] might not be able to have sent transaction: ',
+          sendTransaction,
+          ' got: ',
+          err
+        );
+        return;
+      }
+    })();
+  }
 
   const acknowledgement = hi.Signature.compute(transfer.hash().buffer, hi.Params.acknowledgementPrivateKey);
 
