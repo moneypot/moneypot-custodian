@@ -71,6 +71,9 @@ export default async function makeTransfer(body: any): Promise<string> {
     throw 'WRONG_FEE_RATE';
   }
 
+  let otherHookouts: hi.Hookout[] = [];
+
+
   await withTransaction(async dbClient => {
     const insertRes = await dbTransfer.insertTransfer(dbClient, transfer);
     if (insertRes === 'ALREADY_EXISTS') {
@@ -79,28 +82,27 @@ export default async function makeTransfer(body: any): Promise<string> {
     assert.strictEqual(insertRes, 'SUCCESS');
 
     await dbTransfer.insertHookout(dbClient, hookout);
+
+      // If we're going to send right now, lets get some others...
+    if (hookout.priority === 'IMMEDIATE' || hookout.priority === 'FREE') {
+
+      const queryRes = await dbClient.query(`SELECT hookout FROM hookouts WHERE
+          hookout->>'priority' = $1 AND processed_by IS NULL
+        `,
+        [hookout.priority === 'IMMEDIATE' ? 'BATCH' : 'FREE']
+      );
+
+      for (const { hookout } of queryRes.rows) {
+        const h = hi.Hookout.fromPOD(hookout);
+        if (h instanceof Error) {
+          throw h;
+        }
+
+        otherHookouts.push(h);
+      }
+    }
   });
 
-  let otherHookouts: hi.Hookout[] = [];
-
-  // If we're going to send right now, lets get some others...
-  if (hookout.priority === 'IMMEDIATE' || hookout.priority === 'FREE') {
-    const queryRes = await pool.query(
-      `SELECT hookout FROM hookouts WHERE
-        hookout->>'priority' = $1 AND processed_by IS NULL
-      `,
-      [hookout.priority === 'IMMEDIATE' ? 'BATCH' : 'FREE']
-    );
-
-    for (const { hookout } of queryRes.rows) {
-      const h = hi.Hookout.fromPOD(hookout);
-      if (h instanceof Error) {
-        throw h;
-      }
-
-      otherHookouts.push(h);
-    }
-  }
 
   // If not a batch...
   if (hookout.priority !== 'BATCH') {
