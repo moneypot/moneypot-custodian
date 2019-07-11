@@ -1,6 +1,8 @@
 import * as hi from 'hookedin-lib';
 import * as rpcClient from '../util/rpc-client';
 
+import ci, { fundingSecretKey } from '../custodian-info'
+
 import dbClaim from '../db/claim';
 import { pool } from '../db/util';
 
@@ -18,7 +20,7 @@ export default async function(body: any): Promise<hi.POD.ClaimResponse> {
 
   const txOut = await rpcClient.getTxOut(hookin.txid, hookin.vout);
 
-  const expectedAddress = hi.Params.fundingPublicKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
+  const expectedAddress = ci.fundingKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
   if (expectedAddress !== txOut.address) {
     console.warn('Expected address: ', expectedAddress, ' got address: ', txOut.address);
     throw 'INVALID_HOOKIN';
@@ -45,9 +47,8 @@ export default async function(body: any): Promise<hi.POD.ClaimResponse> {
 }
 
 async function importHookin(hookin: hi.Hookin) {
-  const basePrivkey = hi.Params.fundingPrivateKey;
 
-  const spendingPrivkey = basePrivkey.tweak(hookin.getTweak()).toWif();
+  const spendingPrivkey = fundingSecretKey.tweak(hookin.getTweak()).toWif();
 
   try {
     await rpcClient.importPrivateKey(spendingPrivkey);

@@ -2,6 +2,7 @@ import * as hi from 'hookedin-lib';
 import assert from 'assert';
 import { pool } from './util';
 import * as nonceLookup from '../util/nonces';
+import { blindingSecretKeys } from '../custodian-info'
 
 export default async function(claimRequest: hi.ClaimRequest): Promise<hi.POD.ClaimResponse> {
   const coinRequests = claimRequest.coinRequests;
@@ -19,7 +20,7 @@ export default async function(claimRequest: hi.ClaimRequest): Promise<hi.POD.Cla
     const coinReq = coinRequests[i];
 
     const blindedExistenceProof = hi.blindSign(
-      hi.Params.blindingCoinPrivateKeys[coinReq.magnitude.n],
+      blindingSecretKeys[coinReq.magnitude.n],
       secretNonce,
       coinReq.blindedOwner
     );

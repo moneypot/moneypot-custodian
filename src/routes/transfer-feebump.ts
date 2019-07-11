@@ -4,6 +4,8 @@ import { withTransaction } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 
+import { ackSecretKey } from '../custodian-info'
+
 // expects a { transfer, feeBump }
 export default async function makeTransfer(body: any): Promise<string> {
   if (typeof body !== 'object') {
@@ -58,7 +60,7 @@ export default async function makeTransfer(body: any): Promise<string> {
     throw err;
   }
 
-  const acknowledgement = hi.Signature.compute(transfer.hash().buffer, hi.Params.acknowledgementPrivateKey);
+  const acknowledgement = hi.Signature.compute(transfer.hash().buffer, ackSecretKey);
 
   await dbTransfer.ackTransfer(transfer.hash().toPOD(), acknowledgement.toPOD());
   return acknowledgement.toPOD();

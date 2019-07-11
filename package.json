@@ -4,28 +4,37 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "build-ts": "tsc",
-    "dev": "npm run build-ts && npm run start",
+    "build": "tsc",
+    "dev": "npm run build && npm run start",
     "start": "node dist/index.js",
     "watch-node": "nodemon dist/index.js",
     "watch-ts": "tsc -w",
-    "postinstall": "npm run build-ts",
-    "prettier": "prettier --single-quote --trailing-comma es5 --print-width 120 --write \"src/**/*.{ts,tsx}\""
+    "postinstall": "npm run build",
+    "prettier": "prettier --single-quote --trailing-comma es5 --print-width 120 --write \"src/**/*.{ts,tsx}\"",
+    "proto-js": "pbjs -t static-module -w commonjs ./src/lightning/rpc.proto -o ./src/lightning/rpc.js && pbts -o ./src/lightning/rpc.d.ts ./src/lightning/rpc.js",
+    "proto": "protoc --plugin=\"protoc-gen-ts=./node_modules/.bin/protoc-gen-ts\" --js_out=\"import_style=commonjs,binary:src/lightning\" --ts_out=\"src/lightning\" -I node_modules/protobufjs -I src/lightning rpc.proto"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/protobufjs": "^6.0.0",
+    "google-protobuf": "^3.8.0",
+    "grpc_tools_node_protoc_ts": "^2.5.4",
     "nodemon": "^1.19.1",
-    "prettier": "^1.17.1",
+    "prettier": "^1.18.2",
     "ts-node": "^7.0.1"
   },
   "dependencies": {
-    "@types/node": "^10.14.8",
+    "@grpc/proto-loader": "^0.5.1",
+    "@types/node": "^10.14.12",
     "@types/pg": "^7.4.14",
+    "coininfo": "^5.1.0",
+    "grpc": "^1.22.2",
     "hookedin-lib": "git+https://github.com/hookedin/hookedin-lib.git",
+    "lnd-grpc": "^0.2.13",
     "pg": "^7.11.0",
-    "typescript": "^3.5.1"
+    "typescript": "^3.5.3"
   },
   "engines": {
     "node": "11.x"

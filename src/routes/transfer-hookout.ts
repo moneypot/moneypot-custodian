@@ -4,6 +4,9 @@ import { withTransaction, pool } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 
+import { fundingSecretKey } from '../custodian-info';
+import { templateTransactionWeight } from '../config'
+
 // expects a { transfer, hookout }
 export default async function makeTransfer(body: any): Promise<string> {
   if (typeof body !== 'object') {
@@ -33,14 +36,14 @@ export default async function makeTransfer(body: any): Promise<string> {
     throw new Error('not possible to create a transfer with negative fee...');
   }
 
-  const feeRate = actualFee / hi.Params.templateTransactionWeight;
+  const feeRate = actualFee / templateTransactionWeight;
 
   const immediateFeeRate = await rpcClient.getImmediateFeeRate();
 
   let expectedFee;
   switch (hookout.priority) {
     case 'IMMEDIATE':
-      expectedFee = Math.round(immediateFeeRate * hi.Params.templateTransactionWeight);
+      expectedFee = Math.round(immediateFeeRate * templateTransactionWeight);
       break;
     case 'BATCH':
       expectedFee = Math.round(immediateFeeRate * 32); // TODO: factor 32 out (it's the size of an output..)
@@ -167,7 +170,7 @@ export default async function makeTransfer(body: any): Promise<string> {
     })();
   }
 
-  const acknowledgement = hi.Signature.compute(transfer.hash().buffer, hi.Params.acknowledgementPrivateKey);
+  const acknowledgement = hi.Signature.compute(transfer.hash().buffer, fundingSecretKey);
 
   await dbTransfer.ackTransfer(transfer.hash().toPOD(), acknowledgement.toPOD());
 

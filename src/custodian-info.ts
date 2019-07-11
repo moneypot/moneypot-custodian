@@ -4,9 +4,11 @@ const currency = process.env.CURRENCY || 'tBTC';
 
 const custodianSecretSeed = hi.Buffutils.fromString(process.env.CUSTODIAN_SECRET_SEED || 'this is not very secret');
 
-const ackSecretKey = computePrivKey('ack secret');
-const fundingSecretKey = computePrivKey('funding secret');
-const blindingSecretKeys = [];
+export const ackSecretKey = computePrivKey('ack secret');
+export const fundingSecretKey = computePrivKey('funding secret');
+export const blindingSecretKeys: hi.PrivateKey[] = [];
+
+
 for (let i = 0; i <= hi.Magnitude.MaxMagnitude; i++) {
   blindingSecretKeys.push(computePrivKey(`blind secret ${i}`));
 }

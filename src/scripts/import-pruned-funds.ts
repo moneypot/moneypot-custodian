@@ -3,6 +3,8 @@ import * as hi from 'hookedin-lib';
 import * as rpcClient from '../util/rpc-client';
 import { pool } from '../db/util';
 
+import { fundingSecretKey } from '../custodian-info';
+
 console.log('Importing prune funds');
 
 async function run() {
@@ -16,9 +18,8 @@ async function run() {
       throw hookin;
     }
 
-    const basePrivkey = hi.Params.fundingPrivateKey;
 
-    const spendingPrivkey = basePrivkey.tweak(hookin.getTweak());
+    const spendingPrivkey = fundingSecretKey.tweak(hookin.getTweak());
 
     console.log('importing: ', spendingPrivkey.toWif());
     console.log('prebalance: ', await rpcClient.getBalance());
