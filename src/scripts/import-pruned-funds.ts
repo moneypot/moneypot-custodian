@@ -18,7 +18,6 @@ async function run() {
       throw hookin;
     }
 
-
     const spendingPrivkey = fundingSecretKey.tweak(hookin.getTweak());
 
     console.log('importing: ', spendingPrivkey.toWif());

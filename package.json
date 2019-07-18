@@ -18,17 +18,17 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/protobufjs": "^6.0.0",
-    "google-protobuf": "^3.8.0",
-    "grpc_tools_node_protoc_ts": "^2.5.4",
-    "nodemon": "^1.19.1",
-    "prettier": "^1.18.2",
-    "ts-node": "^7.0.1"
-  },
-  "dependencies": {
     "@grpc/proto-loader": "^0.5.1",
     "@types/node": "^10.14.12",
     "@types/pg": "^7.4.14",
+    "@types/protobufjs": "^6.0.0",
+    "google-protobuf": "^3.9.0",
+    "grpc_tools_node_protoc_ts": "^2.5.4",
+    "nodemon": "^1.19.1",
+    "prettier": "^1.18.2",
+    "ts-node": "^8.3.0"
+  },
+  "dependencies": {
     "coininfo": "^5.1.0",
     "grpc": "^1.22.2",
     "hookedin-lib": "git+https://github.com/hookedin/hookedin-lib.git",

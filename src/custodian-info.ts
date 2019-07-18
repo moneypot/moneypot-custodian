@@ -8,7 +8,6 @@ export const ackSecretKey = computePrivKey('ack secret');
 export const fundingSecretKey = computePrivKey('funding secret');
 export const blindingSecretKeys: hi.PrivateKey[] = [];
 
-
 for (let i = 0; i <= hi.Magnitude.MaxMagnitude; i++) {
   blindingSecretKeys.push(computePrivKey(`blind secret ${i}`));
 }

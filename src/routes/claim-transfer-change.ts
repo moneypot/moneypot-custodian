@@ -21,8 +21,13 @@ export default async function(body: any): Promise<hi.POD.ClaimResponse> {
     throw claimant;
   }
 
+  if (transfer.change.amount !== claimReq.amount()) {
+    console.warn('tried to claim: ', claimReq.amount(), ' but should have claimed: ', transfer.change.amount);
+    throw 'WRONG_CLAIM_AMOUNT';
+  }
+
   if (!claimReq.authorization.verify(claimReq.hash().buffer, claimant)) {
-    throw 'CLAIMANT_AUTHORIZATION_FAIL';
+    throw 'AUTHORIZATION_FAIL';
   }
 
   return await dbClaim(claimReq);

@@ -4,11 +4,15 @@ import readJson from './util/read-json';
 import claimTransferChange from './routes/claim-transfer-change';
 import claimHookin from './routes/claim-hookin';
 import transferHookout from './routes/transfer-hookout';
+import transferLightning from './routes/transfer-lightning';
 import transfer from './routes/transfer';
 import coin from './routes/coin';
 import changeByClaimant from './routes/change-by-claimant';
 import index from './routes/index';
 import feeSchedule from './routes/fee-schedule';
+import addInvoice from './routes/add-invoice';
+import processInboundLightning from './process-inbound-lightning';
+import claimLightning from './routes/claim-lightning';
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -39,9 +43,15 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         return await claimTransferChange(body);
       case '/claim-hookin':
         return await claimHookin(body);
-      case '/transfer':
+      case '/claim-lightning':
+        return await claimLightning(body);
+      case '/transfer': // <-- TODO remove
+      case '/transfer-hookout':
         return await transferHookout(body);
-      case '/transfer-feebump':
+      case '/transfer-lightning':
+        return await transferLightning(body);
+      case '/add-invoice':
+        return await addInvoice(body);
     }
   }
 }
@@ -111,6 +121,10 @@ let port = 3030;
 if (process.env.PORT) {
   port = Number.parseInt(process.env.PORT);
 }
+
+processInboundLightning().catch(err => {
+  console.error('caught process inbound lightning error: ', err);
+});
 
 server.listen(port, () => {
   console.log(`Server running at ${port} `);

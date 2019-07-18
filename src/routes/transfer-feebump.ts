@@ -4,7 +4,7 @@ import { withTransaction } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 
-import { ackSecretKey } from '../custodian-info'
+import { ackSecretKey } from '../custodian-info';
 
 // expects a { transfer, feeBump }
 export default async function makeTransfer(body: any): Promise<string> {

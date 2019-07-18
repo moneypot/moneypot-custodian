@@ -1,7 +1,7 @@
 import * as hi from 'hookedin-lib';
 import * as rpcClient from '../util/rpc-client';
 
-import ci, { fundingSecretKey } from '../custodian-info'
+import ci, { fundingSecretKey } from '../custodian-info';
 
 import dbClaim from '../db/claim';
 import { pool } from '../db/util';
@@ -10,7 +10,7 @@ import { pool } from '../db/util';
 // returns an acknowledgement
 export default async function(body: any): Promise<hi.POD.ClaimResponse> {
   if (typeof body !== 'object') {
-    throw 'CLAIM_HOOKIN_EXPECTED_OJBECT';
+    throw 'claim hooking expected an object';
   }
 
   const hookin = hi.Hookin.fromPOD(body.hookin);
@@ -34,6 +34,11 @@ export default async function(body: any): Promise<hi.POD.ClaimResponse> {
     throw claimReq;
   }
 
+  if (txOut.amount !== claimReq.amount()) {
+    console.warn('tried to claim: ', claimReq.amount(), ' but should have claimed: ', txOut.amount);
+    throw 'WRONG_CLAIM_AMOUNT';
+  }
+
   if (!claimReq.authorization.verify(claimReq.hash().buffer, hookin.claimant)) {
     throw 'CLAIMANT_AUTHORIZATION_FAIL';
   }
@@ -47,7 +52,6 @@ export default async function(body: any): Promise<hi.POD.ClaimResponse> {
 }
 
 async function importHookin(hookin: hi.Hookin) {
-
   const spendingPrivkey = fundingSecretKey.tweak(hookin.getTweak()).toWif();
 
   try {

@@ -2,7 +2,7 @@ import * as hi from 'hookedin-lib';
 import assert from 'assert';
 import { pool } from './util';
 import * as nonceLookup from '../util/nonces';
-import { blindingSecretKeys } from '../custodian-info'
+import { blindingSecretKeys } from '../custodian-info';
 
 export default async function(claimRequest: hi.ClaimRequest): Promise<hi.POD.ClaimResponse> {
   const coinRequests = claimRequest.coinRequests;

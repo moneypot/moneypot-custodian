@@ -1,4 +1,7 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, types } from 'pg';
+types.setTypeParser(20, function(val) {
+  return parseInt(val);
+});
 
 let connectionString = 'postgres://localhost:5432/captain-hook';
 if (process.env.DATABASE_URL) {

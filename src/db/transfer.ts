@@ -69,6 +69,18 @@ export async function removeHookout(client: pg.PoolClient, hookoutHash: string) 
   await client.query(`DELETE FROM hookouts WHERE hash = $1`, [hookoutHash]);
 }
 
+export async function insertLightningPayment(client: pg.PoolClient, payment: hi.LightningPayment) {
+  await client.query(
+    `INSERT INTO lightning_payments(hash, lightning_payment)
+           VALUES($1, $2)`,
+    [payment.hash().toPOD(), payment.toPOD()]
+  );
+}
+
+export async function removeLightningPayment(client: pg.PoolClient, paymentHash: string) {
+  await client.query(`DELETE FROM lightning_payments WHERE hash = $1`, [paymentHash]);
+}
+
 type TxInfo = { txid: string; hex: string; fee: number };
 export async function insertBitcoinTransaction(client: pg.PoolClient, tx: TxInfo) {
   await client.query(

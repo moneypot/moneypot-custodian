@@ -71,3 +71,29 @@ CREATE TABLE fee_bumps(
 );
 
 CREATE INDEX fee_bumps_txid_idx ON fee_bumps((fee_bump->>'txid'));
+
+
+-- lightning invoices are totally prunable
+CREATE TABLE lightning_invoices(
+  hash                 text        PRIMARY KEY,
+  lightning_invoice    jsonb       NOT NULL, -- ack'd lightningInvoice
+  r_hash               text        NOT NULL, -- hex
+  settle_index         bigint      NOT NULL DEFAULT 0,  -- from lnd, otherwise  0
+  settle_amount        bigint      NOT NULL DEFAULT 0,  -- only set when it's paid, otherwise 0
+  created              timestamptz NOT NULL DEFAULT NOW()
+  --  , CHECK(payment IS NULL OR payment->'value_sat' IS INT)
+);
+
+CREATE INDEX lightning_invoices_beneficiary_idx ON lightning_invoices((lightning_invoice->'beneficiary'));
+CREATE UNIQUE INDEX lightning_invoices_r_hash_idx ON lightning_invoices(r_hash);
+CREATE INDEX lightning_invoices_settle_index ON lightning_invoices(settle_index);
+
+CREATE TABLE lightning_payments(
+  hash             text       PRIMARY KEY,
+  lightning_payment text       NOT NULL,
+  payment_preimage  text           NULL, -- only set if payment once payment succeeds
+  created              timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX lightning_payments_unq_request_idx ON lightning_payments((lightning_payment->'paymentRequest'));
+CREATE UNIQUE INDEX lightning_payments_unq_preimage_idx ON lightning_payments(payment_preimage);
