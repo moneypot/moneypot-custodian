@@ -9,9 +9,9 @@ export default async function addInvoice(body: any) {
     throw 'expected object for add invoice';
   }
 
-  const beneficary = hi.PublicKey.fromPOD(body.beneficary);
-  if (beneficary instanceof Error) {
-    throw 'expected a public key beneficary';
+  const claimant = hi.PublicKey.fromPOD(body.claimant);
+  if (claimant instanceof Error) {
+    throw 'expected a public key claimant';
   }
 
   const memo = body.memo;
@@ -19,12 +19,12 @@ export default async function addInvoice(body: any) {
     throw 'expected a string for memo';
   }
 
-  const value = body.value;
-  if (typeof value !== 'number' || value < 0 || !Number.isSafeInteger(value)) {
-    throw 'expected an natural number for value';
+  const amount = body.amount;
+  if (typeof amount !== 'number' || amount < 0 || !Number.isSafeInteger(amount)) {
+    throw 'expected an natural number for amount';
   }
 
-  const [invoice, rHash] = await lightning.addInvoice(beneficary, memo, value);
+  const [invoice, rHash] = await lightning.addInvoice(claimant, memo, amount);
 
   const ackedInvoice: hi.AcknowledgedLightningInvoice = hi.Acknowledged.acknowledge(invoice, ackSecretKey);
 
@@ -43,7 +43,7 @@ export default async function addInvoice(body: any) {
 (async function() {
   const pub = hi.PrivateKey.fromRand().toPublicKey();
 
-  const details = { beneficary: pub.toPOD(), memo: 'autogen', value: Math.floor(Math.random() * 50000) };
+  const details = { claimant: pub.toPOD(), memo: 'autogen', amount: Math.floor(Math.random() * 50000) };
 
   console.log('new invoice is: ', await addInvoice(details));
 })();

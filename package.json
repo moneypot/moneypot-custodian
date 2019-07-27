@@ -19,7 +19,7 @@
   "license": "ISC",
   "devDependencies": {
     "@grpc/proto-loader": "^0.5.1",
-    "@types/node": "^10.14.12",
+    "@types/node": "^10.14.13",
     "@types/pg": "^7.4.14",
     "@types/protobufjs": "^6.0.0",
     "google-protobuf": "^3.9.0",

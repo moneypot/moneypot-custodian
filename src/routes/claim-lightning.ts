@@ -31,7 +31,7 @@ export default async function(body: any): Promise<hi.POD.ClaimResponse> {
     throw 'WRONG_CLAIM_AMOUNT';
   }
 
-  if (!claimReq.authorization.verify(claimReq.hash().buffer, invoice.beneficiary)) {
+  if (!claimReq.authorization.verify(claimReq.hash().buffer, invoice.claimant)) {
     throw 'AUTHORIZATION_FAIL';
   }
 

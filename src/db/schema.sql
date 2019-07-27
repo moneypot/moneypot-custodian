@@ -78,22 +78,22 @@ CREATE TABLE lightning_invoices(
   hash                 text        PRIMARY KEY,
   lightning_invoice    jsonb       NOT NULL, -- ack'd lightningInvoice
   r_hash               text        NOT NULL, -- hex
-  settle_index         bigint      NOT NULL DEFAULT 0,  -- from lnd, otherwise  0
-  settle_amount        bigint      NOT NULL DEFAULT 0,  -- only set when it's paid, otherwise 0
-  created              timestamptz NOT NULL DEFAULT NOW()
-  --  , CHECK(payment IS NULL OR payment->'value_sat' IS INT)
+  r_preimage           text            NULL, -- hex but this is a SECRET, only set after invoice is paid!
+  settle_index         bigint          NULL,  -- from lnd, otherwise  0 if not paid
+  settle_amount        bigint          NULL,  -- only set when it's paid, otherwise 0
+  created              timestamptz NOT NULL DEFAULT NOW() -- internal debug
 );
 
-CREATE INDEX lightning_invoices_beneficiary_idx ON lightning_invoices((lightning_invoice->'beneficiary'));
+CREATE UNIQUE INDEX lightning_invoices_claimant_idx ON lightning_invoices((lightning_invoice->>'claimant'));
 CREATE UNIQUE INDEX lightning_invoices_r_hash_idx ON lightning_invoices(r_hash);
-CREATE INDEX lightning_invoices_settle_index ON lightning_invoices(settle_index);
+CREATE INDEX lightning_invoices_settle_index ON lightning_invoices(settle_index DESC NULLS LAST);
 
 CREATE TABLE lightning_payments(
   hash             text       PRIMARY KEY,
-  lightning_payment text       NOT NULL,
+  lightning_payment jsonb       NOT NULL,
   payment_preimage  text           NULL, -- only set if payment once payment succeeds
   created              timestamptz NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX lightning_payments_unq_request_idx ON lightning_payments((lightning_payment->'paymentRequest'));
+CREATE UNIQUE INDEX lightning_payments_unq_request_idx ON lightning_payments((lightning_payment->>'paymentRequest'));
 CREATE UNIQUE INDEX lightning_payments_unq_preimage_idx ON lightning_payments(payment_preimage);

@@ -101,7 +101,7 @@ const lightningAddInvoice = promisify((arg: { memo: string; value: number }, cb:
 );
 
 export async function addInvoice(
-  beneficary: hi.PublicKey,
+  claimant: hi.PublicKey,
   memo: string,
   value: number
 ): Promise<[hi.LightningInvoice, string]> {
@@ -111,7 +111,7 @@ export async function addInvoice(
 
   const rHash = hi.Buffutils.toHex(invoice.r_hash);
 
-  return [new hi.LightningInvoice(beneficary, invoice.payment_request), rHash];
+  return [new hi.LightningInvoice(claimant, invoice.payment_request), rHash];
 }
 
 const lightningSendPayment = promisify(
@@ -128,26 +128,3 @@ export async function sendPayment(payment: hi.LightningPayment, feeLimit: number
 
   console.log('after sending a lightningPayment, got the result: ', sendRes);
 }
-
-// // Do something cool when the wallet gets unlocked.
-// grpc.on(`active`, () => {
-//   console.log('wallet unlocked!');
-//   resolve();
-// });
-
-// // Do something cool if we detect that the wallet is locked.
-// grpc.on(`locked`, () => console.log('wallet locked!'))
-
-// // Do something cool when the connection gets disconnected.
-// grpc.on(`disconnected`, () => console.log('disconnected from lnd!'))
-
-// // Establish a connection.
-// await grpc.connect();
-
-// // Check if the wallet is locked and unlock if needed.
-// if (grpc.state === 'locked') {
-//   const { WalletUnlocker } = grpc.services
-//   await WalletUnlocker.unlockWallet({
-//     wallet_password: Buffer.from('password'),
-//   });
-// }

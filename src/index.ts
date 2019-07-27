@@ -13,6 +13,8 @@ import feeSchedule from './routes/fee-schedule';
 import addInvoice from './routes/add-invoice';
 import processInboundLightning from './process-inbound-lightning';
 import claimLightning from './routes/claim-lightning';
+import lightningInvoiceByClaimant from './routes/lightning-invoice-by-claimant';
+import lightningInvoicePayments from './routes/lightning-invoice-payments';
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -32,6 +34,10 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
     return coin(url);
   } else if (url.startsWith('/change/claimants/')) {
     return changeByClaimant(url);
+  } else if (url.startsWith('/lightning-invoices/claimants/')) {
+    return lightningInvoiceByClaimant(url);
+  } else if (url.startsWith('/lightning-invoice-payments/')) {
+    return lightningInvoicePayments(url);
   }
 
   if (req.method === 'POST') {
@@ -46,6 +52,7 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
       case '/claim-lightning':
         return await claimLightning(body);
       case '/transfer': // <-- TODO remove
+        console.warn('deprecated route: /transer');
       case '/transfer-hookout':
         return await transferHookout(body);
       case '/transfer-lightning':
