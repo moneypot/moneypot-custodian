@@ -34,8 +34,10 @@ export default async function(body: any): Promise<hi.POD.ClaimResponse> {
     throw claimReq;
   }
 
-  if (txOut.amount !== claimReq.amount()) {
-    console.warn('tried to claim: ', claimReq.amount(), ' but should have claimed: ', txOut.amount);
+  const consolidationFee = Math.ceil(149 / 4); // TODO: make it dynamic...
+
+  if (txOut.amount - consolidationFee !== claimReq.amount()) {
+    console.warn('tried to claim: ', claimReq.amount(), ' but should have claimed: ', txOut.amount - consolidationFee);
     throw 'WRONG_CLAIM_AMOUNT';
   }
 
