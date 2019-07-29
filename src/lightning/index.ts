@@ -1,6 +1,6 @@
-import grpc from 'grpc';
 import { promisify } from 'util';
 
+import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 
 import * as hi from 'hookedin-lib';
@@ -21,7 +21,7 @@ process.env.GRPC_SSL_CIPHER_SUITES = 'HIGH+ECDSA';
 
 let sslCreds = grpc.credentials.createSsl(Buffer.from(args.cert, 'utf8'));
 
-let macaroonCreds = grpc.credentials.createFromMetadataGenerator(function(mArgs, callback) {
+let macaroonCreds = grpc.credentials.createFromMetadataGenerator(function(mArgs: any, callback: any) {
   let metadata = new grpc.Metadata();
   metadata.add('macaroon', args.macaroon);
   callback(null, metadata);
@@ -57,21 +57,20 @@ interface LndInvoice {
 const notifMutex = new Mutex();
 
 export function subscribeSettledInvoices(lastSettled: number, cb: (invoice: LndInvoice) => Promise<void>) {
-  // We are going to miss the first settlement!
-  // https://github.com/lightningnetwork/lnd/issues/2469
-  if (lastSettled === 0) {
-    lastSettled = 1;
-  }
+  return new Promise(resolve => {
+    // We are going to miss the first settlement!
+    // https://github.com/lightningnetwork/lnd/issues/2469
+    if (lastSettled === 0) {
+      lastSettled = 1;
+    }
 
-  let canceled = false;
+    let canceled = false;
 
-  const call = lightning.subscribeInvoices({ settle_index: lastSettled });
+    const call = lightning.subscribeInvoices({ settle_index: lastSettled });
 
-  call.on('data', function(invoice: LndInvoice) {
-    if (invoice.state === 'SETTLED') {
-      (async function() {
-        const releaser = await notifMutex.acquire();
-        if (canceled) return;
+    call.on('data', function(invoice: LndInvoice) {
+      notifMutex.runExclusive(async () => {
+        if (canceled || invoice.state !== 'SETTLED') return;
 
         try {
           await cb(invoice);
@@ -80,20 +79,20 @@ export function subscribeSettledInvoices(lastSettled: number, cb: (invoice: LndI
           call.cancel();
           canceled = true;
         }
-
-        releaser();
-      })();
-    }
+      });
+    });
+    call.on('end', function() {
+      // The server has closed the stream
+      // let's let everything currently running to process and tell the caller to restart
+      console.warn('lnd closed subscribe stream');
+      notifMutex.runExclusive(async () => {
+        resolve();
+      });
+    });
+    call.on('error', (err: any) => {
+      console.warn('lnd stream closed: ', err);
+    });
   });
-  call.on('status', function(status: any) {
-    // The current status of the stream.
-    console.log('lightning subscribe invoice status: ', status);
-  });
-  call.on('end', function() {
-    // The server has closed the stream.
-    console.log('lnd closed subscribe stream');
-  });
-  call.on('error', (err: any) => console.log('lnd subscribe error: ', err));
 }
 
 const lightningAddInvoice = promisify((arg: { memo: string; value: number }, cb: (err: Error, x: any) => any) =>

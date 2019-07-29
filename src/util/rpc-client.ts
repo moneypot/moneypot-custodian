@@ -3,7 +3,6 @@ import * as hi from 'hookedin-lib';
 import * as coinsayer from './coinsayer';
 
 import JSONRpcClient from './jsonrpc';
-import { stringify } from 'querystring';
 
 //let jsonClient = new JSONRpcClient('127.0.0.1', 18332, 'testnetdev', 'l5JwLwtAXnaF');
 let jsonClient = new JSONRpcClient(

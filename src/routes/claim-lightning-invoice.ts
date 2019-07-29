@@ -8,7 +8,7 @@ import { pool } from '../db/util';
 
 // body should be claimRequest
 // returns an acknowledgement
-export default async function(body: any): Promise<hi.POD.ClaimResponse> {
+export default async function claimLightningInvoice(body: any): Promise<hi.POD.ClaimResponse> {
   const claimReq = hi.ClaimRequest.fromPOD(body);
   if (claimReq instanceof Error) {
     throw claimReq;

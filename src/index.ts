@@ -12,9 +12,9 @@ import index from './routes/index';
 import feeSchedule from './routes/fee-schedule';
 import addInvoice from './routes/add-invoice';
 import processInboundLightning from './process-inbound-lightning';
-import claimLightning from './routes/claim-lightning';
+import claimLightningInvoice from './routes/claim-lightning-invoice';
 import lightningInvoiceByClaimant from './routes/lightning-invoice-by-claimant';
-import lightningInvoicePayments from './routes/lightning-invoice-payments';
+import lightningReceiveds from './routes/lightning-receiveds';
 
 async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -36,8 +36,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
     return changeByClaimant(url);
   } else if (url.startsWith('/lightning-invoices/claimants/')) {
     return lightningInvoiceByClaimant(url);
-  } else if (url.startsWith('/lightning-invoice-payments/')) {
-    return lightningInvoicePayments(url);
+  } else if (url.startsWith('/lightning-receiveds/')) {
+    return lightningReceiveds(url);
   }
 
   if (req.method === 'POST') {
@@ -49,8 +49,8 @@ async function runner(req: http.IncomingMessage, res: http.ServerResponse): Prom
         return await claimTransferChange(body);
       case '/claim-hookin':
         return await claimHookin(body);
-      case '/claim-lightning':
-        return await claimLightning(body);
+      case '/claim-lightning-invoice':
+        return await claimLightningInvoice(body);
       case '/transfer': // <-- TODO remove
         console.warn('deprecated route: /transer');
       case '/transfer-hookout':
