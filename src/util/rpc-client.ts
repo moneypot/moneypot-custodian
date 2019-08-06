@@ -141,9 +141,14 @@ export async function getMemPoolEntryFee(txid: string): Promise<number | undefin
   return Math.round(baseFeeInBitcoin * 1e8);
 }
 
-export async function bumpFee(txid: string, totalFee: number) {
-  const res = await jsonClient.call('bumpfee', { totalFee });
-  console.log('fee bump result: ', res);
+type BumpFeeResult = { txid: string; origfee: number; fee: number; errors: string[] };
+
+export async function bumpFee(txid: string, totalFee: number): Promise<string | Error> {
+  const res: BumpFeeResult = await jsonClient.call('bumpfee', { totalFee });
+  if (res.errors) {
+    return new Error(res.errors[0]);
+  }
+  return res.txid;
 }
 
 function addressType(address: string) {
@@ -168,7 +173,7 @@ export async function createSmartTransaction(
   optionals: hi.Hookout[],
   feeRate: number,
   noChange: boolean
-): Promise<CreateTransactionResult> {
+): Promise<CreateTransactionResult | Error> {
   let unspent = await listUnspent();
 
   let consolidationFeeRate = await getConsolidationFeeRate();
@@ -212,12 +217,12 @@ export async function createSmartTransaction(
   if (noChange) {
     if (res.changeAmount !== 0) {
       console.warn('coinsayer tried to pick change, even when we made it stupid :(');
-      throw 'NO_SOLUTION_FOUND'; // TODO: better support for this directly in coinsayer...
+      return new Error('NO_SOLUTION_FOUND'); // TODO: better support for this directly in coinsayer...
     }
 
     if (res.miningFee / res.weight > consolidationFeeRate * 1.01) {
       console.warn('coinsayer couldnt find a no-change solution without too much sacrifice');
-      throw 'NO_SOLUTION_FOUND';
+      return new Error('NO_SOLUTION_FOUND');
     }
   }
 

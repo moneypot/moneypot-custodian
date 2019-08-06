@@ -4,37 +4,20 @@ CREATE SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 
-CREATE TABLE transfers(
+CREATE TABLE claimables(
   hash                  text        PRIMARY KEY,
-  transfer              jsonb       NOT NULL, -- transfer (POD)
-  acknowledgement       text            NULL, -- if it's null, it's not yet finalized
+  claimable             jsonb       NOT NULL, -- ack'd claimable (POD)
   created               timestamptz     NULL DEFAULT NOW() -- prunable
 );
-
-CREATE INDEX transfers_change_claimant_idx ON transfers((transfer->'change'->>'claimant')); 
+CREATE INDEX claimables_kind_idx ON claimables((claimable->>'kind'))
 
 
 -- this transfer_inputs is really just to provide the unique constraint on input owners :P
 CREATE TABLE transfer_inputs(
   owner            text                            PRIMARY KEY,
-  transfer_hash    text        NOT NULL REFERENCES transfers(hash)
+  transfer_hash    text        NOT NULL REFERENCES claimables(hash)
 );
 CREATE INDEX transfer_inputs_transfer_hash_idx ON transfer_inputs(transfer_hash);
-
-CREATE TABLE hookins(
-  hash                        text            PRIMARY KEY,
-  hookin                      jsonb               NULL,   -- can be pruned (only AFER it's imported and AFTER it's safely been spent... )  
-  imported                    boolean         NOT NULL DEFAULT false, -- into wallet
-  created                     timestamptz         NULL DEFAULT NOW() -- prunable (for debug..)
-);
-CREATE INDEX hookins_txid_idx ON hookins((hookin->>'txid'));
-
-CREATE TABLE claims(
-  hash            text         PRIMARY KEY, -- hash of what's being claimed (either a transfer-change or hookin)
-  response        jsonb        NOT NULL,  -- ack'd claim_response
-  created         timestamptz  NULL DEFAULT NOW() -- prunable (for debug..)
-);
-
 
 
 -- SENDING means it's in progress (or locked up)
@@ -50,50 +33,11 @@ CREATE TABLE bitcoin_transactions(
   created                timestamptz                  NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE hookouts(
-  hash           text      PRIMARY KEY,
-  hookout        jsonb         NOT NULL,
-  processed_by   text              NULL REFERENCES bitcoin_transactions(txid),
-  created        timestamptz  NULL DEFAULT NOW()
+CREATE TABLE statuses(
+  claimable_hash         text        NOT NULL REFERENCES claimables(hash),
+  status                 jsonb       NOT NULL, -- a status object
+  created                timestamptz NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX hookouts_processed_by_idx ON hookouts(processed_by);
-
-
-
--- entire row is prunable ---
--- this serves no role other than logging..
-CREATE TABLE fee_bumps(
-  hash     text    PRIMARY KEY,
-  fee_bump jsonb       NOT NULL,
-  new_txid text           NULL, -- only set after the bump succeeds
-  created  timestamptz  NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX fee_bumps_txid_idx ON fee_bumps((fee_bump->>'txid'));
-
-
--- lightning invoices are totally prunable
-CREATE TABLE lightning_invoices(
-  hash                 text        PRIMARY KEY,
-  lightning_invoice    jsonb       NOT NULL, -- ack'd lightningInvoice
-  r_hash               text        NOT NULL, -- hex
-  r_preimage           text            NULL, -- hex but this is a SECRET, only set after invoice is paid!
-  settle_index         bigint          NULL,  -- from lnd, otherwise  0 if not paid
-  settle_amount        bigint          NULL,  -- only set when it's paid, otherwise 0
-  created              timestamptz NOT NULL DEFAULT NOW() -- internal debug
-);
-
-CREATE UNIQUE INDEX lightning_invoices_claimant_idx ON lightning_invoices((lightning_invoice->>'claimant'));
-CREATE UNIQUE INDEX lightning_invoices_r_hash_idx ON lightning_invoices(r_hash);
-CREATE INDEX lightning_invoices_settle_index ON lightning_invoices(settle_index DESC NULLS LAST);
-
-CREATE TABLE lightning_payments(
-  hash             text       PRIMARY KEY,
-  lightning_payment jsonb       NOT NULL,
-  payment_preimage  text           NULL, -- only set if payment once payment succeeds
-  created              timestamptz NOT NULL DEFAULT NOW()
-);
-
-CREATE UNIQUE INDEX lightning_payments_unq_request_idx ON lightning_payments((lightning_payment->>'paymentRequest'));
-CREATE UNIQUE INDEX lightning_payments_unq_preimage_idx ON lightning_payments(payment_preimage);
+CREATE INDEX statuses_claimable_hash_idx ON statuses(claimable_hash);
+--CREATE INDEX lightning_invoices_settle_index ON lightning_invoices(settle_index DESC NULLS LAST);

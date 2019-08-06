@@ -1,84 +1,7 @@
 import http from 'http';
-import genNonces from './routes/gen-nonces';
-import readJson from './util/read-json';
-import claimTransferChange from './routes/claim-transfer-change';
-import claimHookin from './routes/claim-hookin';
-import transferHookout from './routes/transfer-hookout';
-import transferLightning from './routes/transfer-lightning';
-import transfer from './routes/transfer';
-import coin from './routes/coin';
-import changeByClaimant from './routes/change-by-claimant';
-import index from './routes/index';
-import feeSchedule from './routes/fee-schedule';
-import addInvoice from './routes/add-invoice';
+
 import processInboundLightning from './process-inbound-lightning';
-import claimLightningInvoice from './routes/claim-lightning-invoice';
-import lightningInvoiceByClaimant from './routes/lightning-invoice-by-claimant';
-import lightningReceiveds from './routes/lightning-receiveds';
-
-async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
-  const url = req.url;
-  if (url === undefined) {
-    throw new Error('404: missing url');
-  }
-
-  switch (url) {
-    case '/':
-      return index();
-    case '/fee-schedule':
-      return await feeSchedule();
-  }
-  if (url.startsWith('/transfers/')) {
-    return transfer(url);
-  } else if (url.startsWith('/coin/')) {
-    return coin(url);
-  } else if (url.startsWith('/change/claimants/')) {
-    return changeByClaimant(url);
-  } else if (url.startsWith('/lightning-invoices/claimants/')) {
-    return lightningInvoiceByClaimant(url);
-  } else if (url.startsWith('/lightning-receiveds/')) {
-    return lightningReceiveds(url);
-  }
-
-  if (req.method === 'POST') {
-    const body = await readJson(req);
-    switch (url) {
-      case '/gen-nonces':
-        return await genNonces(body);
-      case '/claim-transfer-change':
-        return await claimTransferChange(body);
-      case '/claim-hookin':
-        return await claimHookin(body);
-      case '/claim-lightning-invoice':
-        return await claimLightningInvoice(body);
-      case '/transfer': // <-- TODO remove
-        console.warn('deprecated route: /transer');
-      case '/transfer-hookout':
-        return await transferHookout(body);
-      case '/transfer-lightning':
-        return await transferLightning(body);
-      case '/add-invoice':
-        return await addInvoice(body);
-    }
-  }
-}
-
-async function constTime<T>(ms: number, f: () => Promise<T>): Promise<T> {
-  const startTime = Date.now();
-  const result = await f();
-  const endTime = Date.now();
-
-  const duration = endTime - startTime;
-  let sleep = 0;
-
-  if (duration > ms) {
-    console.log("constTime'd function took ", duration, "ms, but should've finished under ", ms);
-  } else {
-    sleep = ms - duration;
-  }
-  await new Promise(resolve => setTimeout(resolve, sleep));
-  return result;
-}
+import routes from './routes';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -94,7 +17,7 @@ const server = http.createServer(async (req, res) => {
 
   let r;
   try {
-    const result = await runner(req, res);
+    const result = await routes(req, res);
     if (result === undefined) {
       res.statusCode = 404;
       r = `"ROUTE_NOT_FOUND"`;

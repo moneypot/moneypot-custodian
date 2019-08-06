@@ -26,7 +26,7 @@ export default async function addInvoice(body: any) {
 
   const [invoice, rHash] = await lightning.addInvoice(claimant, memo, amount);
 
-  const ackedInvoice: hi.AcknowledgedLightningInvoice = hi.Acknowledged.acknowledge(invoice, ackSecretKey);
+  const ackedInvoice = hi.Acknowledged.acknowledge(invoice, ackSecretKey);
 
   const ackedPOD = ackedInvoice.toPOD();
 

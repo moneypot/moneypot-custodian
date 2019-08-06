@@ -8,6 +8,8 @@ import * as hi from 'hookedin-lib';
 import args from './args';
 import Mutex from '../mutex';
 
+import { SendPaymentRes } from './types';
+
 const packageDefinition = protoLoader.loadSync('lnd-rpc.proto', {
   keepCase: true,
   longs: Number,
@@ -118,12 +120,24 @@ const lightningSendPayment = promisify(
     lightning.sendPaymentSync(arg, cb)
 );
 
-export async function sendPayment(payment: hi.LightningPayment, feeLimit: number) {
-  const sendRes = await lightningSendPayment({
-    amt: payment.amount,
-    payment_request: payment.paymentRequest,
-    fee_limit: { fixed: feeLimit },
-  });
+export async function sendPayment(payment: hi.LightningPayment, feeLimit: number): Promise<Error | SendPaymentRes> {
+  let sendRes;
+  try {
+    sendRes = await lightningSendPayment({
+      amt: payment.amount,
+      payment_request: payment.paymentRequest,
+      fee_limit: { fixed: feeLimit },
+    });
+  } catch (err) {
+    // just being paranoid and making sure it's an error
+    if (err instanceof Error) {
+      return err;
+    } else {
+      throw err;
+    }
+  }
 
   console.log('after sending a lightningPayment, got the result: ', sendRes);
+
+  return sendRes;
 }
