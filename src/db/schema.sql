@@ -6,10 +6,12 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE claimables(
   hash                  text        PRIMARY KEY,
-  claimable             jsonb       NOT NULL, -- ack'd claimable (POD)
+  claimable             jsonb       NOT NULL CHECK((claimable->>'kind' IS NOT NULL)), -- ack'd claimable (POD)
   created               timestamptz     NULL DEFAULT NOW() -- prunable
 );
-CREATE INDEX claimables_kind_idx ON claimables((claimable->>'kind'))
+CREATE INDEX claimables_kind_idx ON claimables((claimable->>'kind'));
+CREATE INDEX claimables_invoice_payment_request_idx ON claimables((claimable->>'paymentRequest')) WHERE ((claimable->>'kind' = 'LightningInvoice'));
+
 
 
 -- this transfer_inputs is really just to provide the unique constraint on input owners :P
@@ -40,4 +42,15 @@ CREATE TABLE statuses(
 );
 
 CREATE INDEX statuses_claimable_hash_idx ON statuses(claimable_hash);
---CREATE INDEX lightning_invoices_settle_index ON lightning_invoices(settle_index DESC NULLS LAST);
+CREATE INDEX statuses_kind_idx ON statuses((status->>'kind'));
+
+
+CREATE OR REPLACE VIEW lightning_invoices AS SELECT
+  hash,
+  claimable->>'claimant' as claimant,
+  claimable->>'paymentRequest' as paymentRequest,
+  claimable->>'acknowledgement' as acknowledgement,
+  created,
+  (SELECT jsonb_agg(status) FROM statuses WHERE claimable_hash = hash) as statuses,
+  claimable
+FROM claimables WHERE claimable->>'kind' = 'LightningInvoice';

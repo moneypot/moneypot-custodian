@@ -24,20 +24,20 @@ export default async function addInvoice(body: any) {
     throw 'expected an natural number for amount';
   }
 
-  const [invoice, rHash] = await lightning.addInvoice(claimant, memo, amount);
+  const invoice = await lightning.addInvoice(claimant, memo, amount);
 
   const ackedInvoice = hi.Acknowledged.acknowledge(invoice, ackSecretKey);
 
-  const ackedPOD = ackedInvoice.toPOD();
-
+  const pod = hi.claimableToPod(ackedInvoice);
+  
   await db.pool.query(
-    `INSERT INTO lightning_invoices(hash, lightning_invoice, r_hash)
-    VALUES($1, $2, $3)
+    `INSERT INTO claimables(hash, claimable)
+    VALUES($1, $2)
   `,
-    [ackedInvoice.hash().toPOD(), ackedPOD, rHash]
+    [ackedInvoice.hash().toPOD(), pod]
   );
 
-  return ackedPOD;
+  return pod;
 }
 
 (async function() {
@@ -45,5 +45,5 @@ export default async function addInvoice(body: any) {
 
   const details = { claimant: pub.toPOD(), memo: 'autogen', amount: Math.floor(Math.random() * 50000) };
 
-  console.log('new invoice is: ', await addInvoice(details));
+  console.log('new invoice is: ',  await addInvoice(details));
 })();

@@ -8,7 +8,7 @@ import * as hi from 'hookedin-lib';
 import args from './args';
 import Mutex from '../mutex';
 
-import { SendPaymentRes } from './types';
+import { SendPaymentRes, LndInvoice } from './types';
 
 const packageDefinition = protoLoader.loadSync('lnd-rpc.proto', {
   keepCase: true,
@@ -31,30 +31,6 @@ let macaroonCreds = grpc.credentials.createFromMetadataGenerator(function(mArgs:
 
 let creds = grpc.credentials.combineChannelCredentials(sslCreds, macaroonCreds);
 let lightning = new lnrpc.Lightning(args.host, creds);
-
-interface LndInvoice {
-  route_hints: Array<any>;
-  memo: string;
-  receipt: Buffer;
-  r_preimage: Buffer;
-  r_hash: Buffer;
-  value: number;
-  settled: boolean;
-  creation_date: number;
-  settle_date: number;
-  payment_request: string;
-  description_hash: Buffer;
-  expiry: number;
-  fallback_addr: string;
-  cltv_expiry: number;
-  private: boolean;
-  add_index: number;
-  settle_index: number;
-  amt_paid: number;
-  amt_paid_sat: number;
-  amt_paid_msat: number;
-  state: 'OPEN' | 'SETTLED' | 'CANCELED' | 'ACCEPTED';
-}
 
 const notifMutex = new Mutex();
 
@@ -81,6 +57,7 @@ export function subscribeSettledInvoices(lastSettled: number, cb: (invoice: LndI
           call.cancel();
           canceled = true;
         }
+        
       });
     });
     call.on('end', function() {
@@ -105,14 +82,10 @@ export async function addInvoice(
   claimant: hi.PublicKey,
   memo: string,
   value: number
-): Promise<[hi.LightningInvoice, string]> {
+): Promise<hi.LightningInvoice> {
   const invoice = await lightningAddInvoice({ memo, value });
 
-  console.log('got add invoice response: ', invoice);
-
-  const rHash = hi.Buffutils.toHex(invoice.r_hash);
-
-  return [new hi.LightningInvoice(claimant, invoice.payment_request), rHash];
+  return new hi.LightningInvoice(claimant, invoice.payment_request);
 }
 
 const lightningSendPayment = promisify(
