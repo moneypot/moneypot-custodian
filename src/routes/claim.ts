@@ -3,7 +3,6 @@ import * as hi from 'hookedin-lib';
 import * as nonceLookup from '../util/nonces';
 import { blindingSecretKeys, ackSecretKey } from '../custodian-info';
 
-import { Status } from '../status';
 
 import { pool, withTransaction } from '../db/util';
 
@@ -46,7 +45,7 @@ export default async function claim(body: any) {
 
     let toClaim = 0;
     for (const row of rows) {
-      const status: Status = row['status'];
+      const status: hi.Status.All = row['status'];
       switch (status.kind) {
         case 'FeebumpFailed':
         case 'FeebumpSucceeded':

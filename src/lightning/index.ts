@@ -88,6 +88,16 @@ export async function addInvoice(
   return new hi.LightningInvoice(claimant, invoice.payment_request);
 }
 
+const lightningLookupInvoice = promisify((arg: { r_hash_str: string; }, cb: (err: Error, x: LndInvoice) => any) =>
+  lightning.lookupInvoice(arg, cb)
+);
+
+export async function lookupInvoice(
+  r_hash_str: string
+): Promise<LndInvoice> { // TODO: how to handle failure?
+  return await lightningLookupInvoice({ r_hash_str });
+}
+
 const lightningSendPayment = promisify(
   (arg: { amt: number; payment_request: string; fee_limit: { fixed: number } }, cb: (err: Error, x: any) => any) =>
     lightning.sendPaymentSync(arg, cb)

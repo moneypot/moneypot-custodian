@@ -2,18 +2,35 @@ import assert from 'assert';
 import * as hi from 'hookedin-lib';
 import * as lightning from './lightning/index';
 import * as db from './db/util';
-import { Status, InvoiceSettled } from './status';
 import { insertStatus } from './db/status';
 
 export default async function processInboundLightning() {
   while (true) {
     let lastSettleIndex = 0;
 
-    const { rows } = await db.pool.query(
-      `SELECT status FROM statuses WHERE status->>'kind' = 'InvoiceSettled' ORDER BY ((status->'lndInvoice'->>'settle_index' ) ) DESC LIMIT 1;`
-    );
+    // To find the ~last settledInvoice, we're going to search for the last invoice in our db that was settled
+    // then look it up
+    const { rows } = await db.pool.query(`SELECT hash, claimable FROM claimables WHERE hash = (
+        SELECT claimable_hash FROM statuses WHERE status->>'kind' = 'InvoiceSettled' ORDER BY created DESC LIMIT 1
+      )`);
+
+
     if (rows.length === 1) {
-      lastSettleIndex = (rows[0].status as InvoiceSettled).lndInvoice.settle_index;
+      const claimable = hi.podToClaimable(rows[0].claimable);
+      if (claimable instanceof Error) {
+        throw claimable;
+      }
+      if (!(claimable.contents instanceof hi.LightningInvoice)) {
+        throw new Error('expected a lightning invoice, for claimable hash: ' + rows[0].hash);
+      }
+
+      const { tags } = hi.decodeBolt11(claimable.contents.paymentRequest);
+      for (const tag of tags) {
+        if (tag.tagName === 'payment_hash') {
+          const lndInvoice = await lightning.lookupInvoice(tag.data as string);
+          lastSettleIndex = lndInvoice.settle_index;
+        }
+      }
     }
     assert(Number.isSafeInteger(lastSettleIndex));
 
@@ -44,14 +61,11 @@ export default async function processInboundLightning() {
       );
 
       await insertStatus(invoiceHash, { kind: 'InvoiceSettled',
-        lndInvoice: {
-          ...lndInvoice,
-          receipt: lndInvoice.receipt.toString('hex'),
-          r_preimage: lndInvoice.r_preimage.toString('hex'),
-          r_hash: lndInvoice.r_hash.toString('hex'),
-          description_hash: lndInvoice.description_hash.toString('hex')
+        settlement: {
+          amount: lndInvoice.amt_paid_sat,
+          rPreimage: lndInvoice.r_preimage.toString('hex'),
+          time: new Date(lndInvoice.settle_date * 1000)
         }
-
       });
 
     });

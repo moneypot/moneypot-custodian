@@ -8,7 +8,7 @@ export interface SendPaymentRes {
     hops: any[]; // todo..
     total_fees_msat: number;
     total_amt_msat: number;
-  }[];
+  };
   payment_hash: Buffer;
 }
 

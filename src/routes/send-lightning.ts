@@ -1,4 +1,6 @@
 import * as hi from 'hookedin-lib';
+import * as assert from 'assert';
+
 import * as dbTransfer from '../db/transfer';
 import * as dbStatus from '../db/status';
 
@@ -44,8 +46,15 @@ export default async function sendLightning(body: any): Promise<hi.POD.Lightning
       );
       return;
     }
+    assert.strictEqual(sendRes.payment_error, "");
 
-    await dbStatus.insertStatus(payment.hash().toPOD(), { kind: 'LightningPaymentSucceeded', result: sendRes });
+    await dbStatus.insertStatus(payment.hash().toPOD(), {
+      kind: 'LightningPaymentSucceeded',
+      result: {
+        paymentPreimage: sendRes.payment_preimage.toString('hex'),
+        totalFees: sendRes.payment_route.total_fees,
+      }
+    });
   })();
 
   return ackdPayment.toPOD();
