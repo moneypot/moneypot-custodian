@@ -34,8 +34,15 @@ export default async function sendLightning(body: any): Promise<hi.POD.Lightning
     const sendRes = await lightning.sendPayment(payment, potentialFee);
     if (sendRes instanceof Error) {
       if (sendRes.message === 'SPECIFIC_KNOWN_ERROR') {
+        const status = hi.Acknowledged.acknowledge(
+          new hi.Status({
+            kind: 'LightningPaymentFailed',
+          }),
+          ackSecretKey
+        );
+
         // TODO: this properly...
-        await dbStatus.insertStatus(payment.hash().toPOD(), { kind: 'LightningPaymentFailed' });
+        await dbStatus.insertStatus(payment.hash().toPOD(), status);
       }
 
       console.error(
@@ -46,15 +53,20 @@ export default async function sendLightning(body: any): Promise<hi.POD.Lightning
       );
       return;
     }
-    assert.strictEqual(sendRes.payment_error, "");
+    assert.strictEqual(sendRes.payment_error, '');
 
-    await dbStatus.insertStatus(payment.hash().toPOD(), {
-      kind: 'LightningPaymentSucceeded',
-      result: {
-        paymentPreimage: sendRes.payment_preimage.toString('hex'),
-        totalFees: sendRes.payment_route.total_fees,
-      }
-    });
+    const status = hi.Acknowledged.acknowledge(
+      new hi.Status({
+        kind: 'LightningPaymentSucceeded',
+        result: {
+          paymentPreimage: sendRes.payment_preimage.toString('hex'),
+          totalFees: sendRes.payment_route.total_fees,
+        },
+      }),
+      ackSecretKey
+    );
+
+    await dbStatus.insertStatus(payment.hash().toPOD(), status);
   })();
 
   return ackdPayment.toPOD();

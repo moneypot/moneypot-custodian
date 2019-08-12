@@ -57,7 +57,6 @@ export function subscribeSettledInvoices(lastSettled: number, cb: (invoice: LndI
           call.cancel();
           canceled = true;
         }
-        
       });
     });
     call.on('end', function() {
@@ -78,23 +77,18 @@ const lightningAddInvoice = promisify((arg: { memo: string; value: number }, cb:
   lightning.addInvoice(arg, cb)
 );
 
-export async function addInvoice(
-  claimant: hi.PublicKey,
-  memo: string,
-  value: number
-): Promise<hi.LightningInvoice> {
+export async function addInvoice(claimant: hi.PublicKey, memo: string, value: number): Promise<hi.LightningInvoice> {
   const invoice = await lightningAddInvoice({ memo, value });
 
   return new hi.LightningInvoice(claimant, invoice.payment_request);
 }
 
-const lightningLookupInvoice = promisify((arg: { r_hash_str: string; }, cb: (err: Error, x: LndInvoice) => any) =>
+const lightningLookupInvoice = promisify((arg: { r_hash_str: string }, cb: (err: Error, x: LndInvoice) => any) =>
   lightning.lookupInvoice(arg, cb)
 );
 
-export async function lookupInvoice(
-  r_hash_str: string
-): Promise<LndInvoice> { // TODO: how to handle failure?
+export async function lookupInvoice(r_hash_str: string): Promise<LndInvoice> {
+  // TODO: how to handle failure?
   return await lightningLookupInvoice({ r_hash_str });
 }
 

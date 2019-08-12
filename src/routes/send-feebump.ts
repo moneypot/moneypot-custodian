@@ -32,18 +32,47 @@ export default async function sendFeeBump(body: any): Promise<hi.POD.FeeBump & h
 
     const previousFee = await rpcClient.getMemPoolEntryFee(oldTxid);
     if (previousFee === undefined) {
-      await dbStatus.insertStatus(feebumpHashStr, { kind: 'FeebumpFailed', error: 'transaction was not in mempool' });
+      await dbStatus.insertStatus(
+        feebumpHashStr,
+        hi.Acknowledged.acknowledge(
+          new hi.Status({
+            kind: 'HookoutFailed',
+            error: 'transaction was not in mempool',
+          }),
+          ackSecretKey
+        )
+      );
+
       return;
     }
 
     const newTxid = await rpcClient.bumpFee(oldTxid, previousFee + feebump.amount);
 
     if (newTxid instanceof Error) {
-      await dbStatus.insertStatus(feebumpHashStr, { kind: 'FeebumpFailed', error: newTxid.message });
+      await dbStatus.insertStatus(
+        feebumpHashStr,
+        hi.Acknowledged.acknowledge(
+          new hi.Status({
+            kind: 'FeebumpFailed',
+            error: newTxid.message,
+          }),
+          ackSecretKey
+        )
+      );
       return;
     }
 
-    await dbStatus.insertStatus(feebumpHashStr, { kind: 'FeebumpSucceeded', newTxid });
+    await dbStatus.insertStatus(
+      feebumpHashStr,
+
+      hi.Acknowledged.acknowledge(
+        new hi.Status({
+          kind: 'FeebumpSucceeded',
+          newTxid,
+        }),
+        ackSecretKey
+      )
+    );
   })();
 
   return ackdFeebump.toPOD();

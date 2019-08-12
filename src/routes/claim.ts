@@ -3,7 +3,6 @@ import * as hi from 'hookedin-lib';
 import * as nonceLookup from '../util/nonces';
 import { blindingSecretKeys, ackSecretKey } from '../custodian-info';
 
-
 import { pool, withTransaction } from '../db/util';
 
 import * as assert from 'assert';
@@ -45,7 +44,7 @@ export default async function claim(body: any) {
 
     let toClaim = 0;
     for (const row of rows) {
-      const status: hi.Status.All = row['status'];
+      const status: hi.POD.Status & hi.POD.Acknowledged = row['status'];
       switch (status.kind) {
         case 'FeebumpFailed':
         case 'FeebumpSucceeded':
@@ -98,11 +97,14 @@ export default async function claim(body: any) {
       ackSecretKey
     );
 
-    const newStatus = {
-      kind: 'Claimed' as 'Claimed',
-      claim: ackClaimResponse.toPOD(),
-      amount: toClaim,
-    };
+    const newStatus = hi.Acknowledged.acknowledge(
+      new hi.Status({
+        kind: 'Claimed',
+        claim: ackClaimResponse.toPOD(),
+        amount: toClaim,
+      }),
+      ackSecretKey
+    );
 
     await insertStatus(claimHash, newStatus, client);
 

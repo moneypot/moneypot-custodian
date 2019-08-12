@@ -3,6 +3,7 @@ import * as hi from 'hookedin-lib';
 import * as lightning from './lightning/index';
 import * as db from './db/util';
 import { insertStatus } from './db/status';
+import { ackSecretKey } from './custodian-info';
 
 export default async function processInboundLightning() {
   while (true) {
@@ -13,7 +14,6 @@ export default async function processInboundLightning() {
     const { rows } = await db.pool.query(`SELECT hash, claimable FROM claimables WHERE hash = (
         SELECT claimable_hash FROM statuses WHERE status->>'kind' = 'InvoiceSettled' ORDER BY created DESC LIMIT 1
       )`);
-
 
     if (rows.length === 1) {
       const claimable = hi.podToClaimable(rows[0].claimable);
@@ -37,7 +37,6 @@ export default async function processInboundLightning() {
     console.log('Going to subscribe to invoices. Highest processed is: ', lastSettleIndex);
 
     await lightning.subscribeSettledInvoices(lastSettleIndex, async lndInvoice => {
-
       const { rows } = await db.pool.query(
         `SELECT hash FROM claimables
           WHERE claimable->>'kind' = 'LightningInvoice' AND claimable->>'paymentRequest' = $1`,
@@ -60,17 +59,21 @@ export default async function processInboundLightning() {
         lndInvoice.settle_index
       );
 
-      await insertStatus(invoiceHash, { kind: 'InvoiceSettled',
-        settlement: {
-          amount: lndInvoice.amt_paid_sat,
-          rPreimage: lndInvoice.r_preimage.toString('hex'),
-          time: new Date(lndInvoice.settle_date * 1000)
-        }
-      });
+      const status = hi.Acknowledged.acknowledge(
+        new hi.Status({
+          kind: 'InvoiceSettled',
+          settlement: {
+            amount: lndInvoice.amt_paid_sat,
+            rPreimage: lndInvoice.r_preimage.toString('hex'),
+            time: new Date(lndInvoice.settle_date * 1000),
+          },
+        }),
+        ackSecretKey
+      );
 
+      await insertStatus(invoiceHash, status);
     });
 
     console.log('[lnd] subscribe failed, restarting');
-
   }
 }

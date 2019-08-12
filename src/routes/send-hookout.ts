@@ -100,7 +100,13 @@ export default async function sendHookout(body: any) {
 
           await dbStatus.insertStatus(
             hookoutHashStr,
-            { kind: 'HookoutFailed', error: sendTransaction.message },
+            hi.Acknowledged.acknowledge(
+              new hi.Status({
+                kind: 'HookoutFailed',
+                error: sendTransaction.message,
+              }),
+              ackSecretKey
+            ),
             dbClient
           );
           return;
@@ -117,7 +123,13 @@ export default async function sendHookout(body: any) {
         for (const hookout of sendTransaction.allOutputs) {
           await dbStatus.insertStatus(
             hookout.hash().toPOD(),
-            { kind: 'HookoutSucceeded', txid: sendTransaction.txid },
+            hi.Acknowledged.acknowledge(
+              new hi.Status({
+                kind: 'HookoutSucceeded',
+                txid: sendTransaction.txid,
+              }),
+              ackSecretKey
+            ),
             dbClient
           );
         }

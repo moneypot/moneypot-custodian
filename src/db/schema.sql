@@ -6,11 +6,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE claimables(
   hash                  text        PRIMARY KEY,
-  claimable             jsonb       NOT NULL CHECK((claimable->>'kind' IS NOT NULL)), -- ack'd claimable (POD)
+  claimable             jsonb       NOT NULL, -- ack'd claimable (POD)
   created               timestamptz     NULL DEFAULT NOW() -- prunable
 );
 CREATE INDEX claimables_kind_idx ON claimables((claimable->>'kind'));
 CREATE INDEX claimables_invoice_payment_request_idx ON claimables((claimable->>'paymentRequest')) WHERE ((claimable->>'kind' = 'LightningInvoice'));
+
+ALTER TABLE claimables ADD CONSTRAINT claimable_kind_check CHECK (jsonb_typeof(claimable->'kind') IS NOT DISTINCT FROM 'string');
+ALTER TABLE claimables ADD CONSTRAINT claimable_acknowledgement_check CHECK (jsonb_typeof(claimable->'acknowledgement') IS NOT DISTINCT FROM 'string');
 
 
 
@@ -37,7 +40,7 @@ CREATE TABLE bitcoin_transactions(
 
 CREATE TABLE statuses(
   claimable_hash         text        NOT NULL REFERENCES claimables(hash),
-  status                 jsonb       NOT NULL, -- a status object
+  status                 jsonb       NOT NULL, -- an ack'd status object
   created                timestamptz NOT NULL DEFAULT NOW()
 );
 
