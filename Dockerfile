@@ -8,5 +8,7 @@ COPY . .
 
 RUN npm install --only=production --unsafe-perm
 
+RUN npm build
+
 # Run the web service on container startup.
 CMD [ "npm", "start" ]

@@ -5,13 +5,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 
 CREATE TABLE claimables(
-  hash                  text        PRIMARY KEY,
   claimable             jsonb       NOT NULL, -- ack'd claimable (POD)
   created               timestamptz     NULL DEFAULT NOW() -- prunable
 );
+CREATE UNIQUE INDEX claimables_hash_idx ON claimables((claimable->>'hash'));
 CREATE INDEX claimables_kind_idx ON claimables((claimable->>'kind'));
 CREATE INDEX claimables_invoice_payment_request_idx ON claimables((claimable->>'paymentRequest')) WHERE ((claimable->>'kind' = 'LightningInvoice'));
 
+ALTER TABLE claimables ADD CONSTRAINT claimable_hash_check CHECK (jsonb_typeof(claimable->'hash') IS NOT DISTINCT FROM 'string');
 ALTER TABLE claimables ADD CONSTRAINT claimable_kind_check CHECK (jsonb_typeof(claimable->'kind') IS NOT DISTINCT FROM 'string');
 ALTER TABLE claimables ADD CONSTRAINT claimable_acknowledgement_check CHECK (jsonb_typeof(claimable->'acknowledgement') IS NOT DISTINCT FROM 'string');
 
@@ -20,7 +21,7 @@ ALTER TABLE claimables ADD CONSTRAINT claimable_acknowledgement_check CHECK (jso
 -- this transfer_inputs is really just to provide the unique constraint on input owners :P
 CREATE TABLE transfer_inputs(
   owner            text                            PRIMARY KEY,
-  transfer_hash    text        NOT NULL REFERENCES claimables(hash)
+  transfer_hash    text        NOT NULL -- REFERENCES claimables((claimable->>'hash'))
 );
 CREATE INDEX transfer_inputs_transfer_hash_idx ON transfer_inputs(transfer_hash);
 
@@ -39,21 +40,21 @@ CREATE TABLE bitcoin_transactions(
 );
 
 CREATE TABLE statuses(
-  claimable_hash         text        NOT NULL REFERENCES claimables(hash),
   status                 jsonb       NOT NULL, -- an ack'd status object
   created                timestamptz NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX statuses_claimable_hash_idx ON statuses(claimable_hash);
+CREATE UNIQUE INDEX statuses_hash_idx ON statuses((status->>'hash'));
+CREATE INDEX statuses_claimable_hash_idx ON statuses((status->>'claimableHash'));
 CREATE INDEX statuses_kind_idx ON statuses((status->>'kind'));
 
 
 CREATE OR REPLACE VIEW lightning_invoices AS SELECT
-  hash,
+  claimable->>'hash',
   claimable->>'claimant' as claimant,
   claimable->>'paymentRequest' as paymentRequest,
   claimable->>'acknowledgement' as acknowledgement,
   created,
-  (SELECT jsonb_agg(status) FROM statuses WHERE claimable_hash = hash) as statuses,
+  (SELECT jsonb_agg(status) FROM statuses WHERE status->>'claimableHash' = claimable->>'hash') as statuses,
   claimable
 FROM claimables WHERE claimable->>'kind' = 'LightningInvoice';

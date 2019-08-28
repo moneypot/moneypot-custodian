@@ -1,31 +1,34 @@
 import assert from 'assert';
-import * as hi from 'hookedin-lib';
+
 import pg from 'pg';
+
+import * as hi from 'hookedin-lib';
 import { withTransaction, pool } from './util';
-import { fundingSecretKey } from '../custodian-info';
+import { fundingSecretKey, ackSecretKey } from '../custodian-info';
 
 // Returns true if was able, returns false if already existts
 
-type InsertRes = 'SUCCESS' | 'ALREADY_EXISTS' | 'DOUBLE_SPEND';
+type InsertRes = hi.Acknowledged.Claimable | 'ALREADY_EXISTS' | 'DOUBLE_SPEND';
 
 export async function insertTransfer(
-  transfer: hi.Acknowledged.LightningPayment | hi.Acknowledged.Hookout | hi.Acknowledged.FeeBump
+  transfer: hi.LightningPayment | hi.Hookout | hi.FeeBump
 ): Promise<InsertRes> {
   const transferHash = transfer.hash();
 
   const transferHashStr: string = transferHash.toPOD();
 
+  const ackdClaimble = hi.Acknowledged.acknowledge(new hi.Claimable(transfer), ackSecretKey);
+
   return withTransaction(async client => {
     let res;
     try {
-      res = await client.query(`INSERT INTO claimables(hash, claimable) VALUES($1, $2)`, [
-        transferHashStr,
-        hi.claimableToPod(transfer),
+      res = await client.query(`INSERT INTO claimables(claimable) VALUES($1)`, [
+        ackdClaimble.toPOD(),
       ]);
     } catch (err) {
       if (err.code === '23505') {
         switch (err.constraint) {
-          case 'claimables_pkey':
+          case 'claimables_pkey': // TODO: ... verify this..
             return 'ALREADY_EXISTS';
         }
         console.error('unknown error trying to insert transfer into db: ', err);
@@ -36,7 +39,7 @@ export async function insertTransfer(
     assert.strictEqual(res.rowCount, 1);
 
     // TODO: do this in a single query...
-    for (const coin of transfer.contents.inputs) {
+    for (const coin of transfer.inputs) {
       const owner: string = coin.owner.toPOD();
       try {
         res = await client.query(`INSERT INTO transfer_inputs(owner, transfer_hash) VALUES ($1, $2)`, [
@@ -51,7 +54,7 @@ export async function insertTransfer(
       }
     }
 
-    return 'SUCCESS';
+    return ackdClaimble;
   });
 }
 

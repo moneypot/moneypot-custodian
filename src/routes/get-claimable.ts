@@ -9,7 +9,7 @@ export default async function getClaimable(url: string) {
     throw 'INVALID_HASH';
   }
 
-  const { rows } = await pool.query(`SELECT claimable FROM claimables WHERE hash = $1`, [hash]);
+  const { rows } = await pool.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1`, [hash]);
   if (rows.length === 0) {
     return null;
   }

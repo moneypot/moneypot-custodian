@@ -4,7 +4,7 @@ import * as lightning from '../lightning/index';
 import * as db from '../db/util';
 import { ackSecretKey } from '../custodian-info';
 
-export default async function addInvoice(body: any) {
+export default async function genInvoice(body: any) {
   if (typeof body !== 'object') {
     throw 'expected object for add invoice';
   }
@@ -26,16 +26,22 @@ export default async function addInvoice(body: any) {
 
   const invoice = await lightning.addInvoice(claimant, memo, amount);
 
-  const ackedInvoice = hi.Acknowledged.acknowledge(invoice, ackSecretKey);
+  const claimable = new hi.Claimable(invoice);
 
-  const pod = hi.claimableToPod(ackedInvoice);
+  const ackedInvoice = hi.Acknowledged.acknowledge(claimable, ackSecretKey);
 
-  await db.pool.query(
-    `INSERT INTO claimables(hash, claimable)
-    VALUES($1, $2)
-  `,
-    [ackedInvoice.hash().toPOD(), pod]
-  );
+  const pod = ackedInvoice.toPOD();
+
+
+  try {
+    await db.pool.query(
+      `INSERT INTO claimables(claimable) VALUES($1)
+    `,
+      [pod]
+    );
+  } catch (err) {
+    console.error('could not run query: ', err, [ackedInvoice.hash().toPOD(), pod]);
+  }
 
   return pod;
 }
@@ -45,5 +51,5 @@ export default async function addInvoice(body: any) {
 
   const details = { claimant: pub.toPOD(), memo: 'autogen', amount: Math.floor(Math.random() * 50000) };
 
-  console.log('new invoice is: ', await addInvoice(details));
+  console.log('new invoice is: ', await genInvoice(details));
 })();

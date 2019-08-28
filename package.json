@@ -9,7 +9,6 @@
     "start": "node dist/index.js",
     "watch-node": "nodemon dist/index.js",
     "watch-ts": "tsc -w",
-    "postinstall": "npm run build",
     "prettier": "prettier --single-quote --trailing-comma es5 --print-width 120 --write \"src/**/*.{ts,tsx}\"",
     "proto-js": "pbjs -t static-module -w commonjs ./src/lightning/rpc.proto -o ./src/lightning/rpc.js && pbts -o ./src/lightning/rpc.d.ts ./src/lightning/rpc.js",
     "proto": "protoc --plugin=\"protoc-gen-ts=./node_modules/.bin/protoc-gen-ts\" --js_out=\"import_style=commonjs,binary:src/lightning\" --ts_out=\"src/lightning\" -I node_modules/protobufjs -I src/lightning rpc.proto"
@@ -18,8 +17,8 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^12.7.1",
-    "@types/pg": "^7.4.14",
+    "@types/node": "^12.7.2",
+    "@types/pg": "^7.11.0",
     "nodemon": "^1.19.1",
     "prettier": "^1.18.2",
     "ts-node": "^8.3.0",

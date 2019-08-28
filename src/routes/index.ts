@@ -3,15 +3,14 @@ import http from 'http';
 import info from './info';
 import genNonces from './gen-nonces';
 import claim from './claim';
-import sendHookout from './send-hookout';
-import sendLightning from './send-lightning';
 import getClaimable from './get-claimable';
 import coin from './coin';
 import feeSchedule from './fee-schedule';
-import addInvoice from './add-invoice';
+import genInvoice from './gen-invoice';
 import lightningInvoiceByClaimant from './lightning-invoice-by-claimant';
 
 import readJson from '../util/read-json';
+import addClaimable from './add-claimable';
 
 export default async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -27,6 +26,8 @@ export default async function runner(req: http.IncomingMessage, res: http.Server
   }
   if (url.startsWith('/claimables/')) {
     return getClaimable(url);
+  } else if (url.startsWith('/statuses-by-claimable/')) {
+    return 
   } else if (url.startsWith('/coin/')) {
     return coin(url);
   } else if (url.startsWith('/lightning-invoices/claimants/')) {
@@ -38,14 +39,13 @@ export default async function runner(req: http.IncomingMessage, res: http.Server
     switch (url) {
       case '/gen-nonces':
         return genNonces(body);
+      case '/gen-invoice':
+          return genInvoice(body);
       case '/claim':
         return claim(body);
-      case '/send-hookout':
-        return sendHookout(body);
-      case '/send-lightning':
-        return sendLightning(body);
-      case '/add-invoice':
-        return addInvoice(body);
+      case '/add-claimable':
+        return addClaimable(body);
+
     }
   }
 }

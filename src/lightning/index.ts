@@ -97,13 +97,13 @@ const lightningSendPayment = promisify(
     lightning.sendPaymentSync(arg, cb)
 );
 
-export async function sendPayment(payment: hi.LightningPayment, feeLimit: number): Promise<Error | SendPaymentRes> {
+export async function sendPayment(payment: hi.LightningPayment): Promise<Error | SendPaymentRes> {
   let sendRes;
   try {
     sendRes = await lightningSendPayment({
       amt: payment.amount,
       payment_request: payment.paymentRequest,
-      fee_limit: { fixed: feeLimit },
+      fee_limit: { fixed: payment.fee },
     });
   } catch (err) {
     // just being paranoid and making sure it's an error

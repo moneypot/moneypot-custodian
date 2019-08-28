@@ -3,7 +3,6 @@ import * as hi from 'hookedin-lib';
 import * as lightning from './lightning/index';
 import * as db from './db/util';
 import { insertStatus } from './db/status';
-import { ackSecretKey } from './custodian-info';
 
 export default async function processInboundLightning() {
   while (true) {
@@ -11,20 +10,19 @@ export default async function processInboundLightning() {
 
     // To find the ~last settledInvoice, we're going to search for the last invoice in our db that was settled
     // then look it up
-    const { rows } = await db.pool.query(`SELECT hash, claimable FROM claimables WHERE hash = (
-        SELECT claimable_hash FROM statuses WHERE status->>'kind' = 'InvoiceSettled' ORDER BY created DESC LIMIT 1
+    const { rows } = await db.pool.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = (
+        SELECT status->>'claimableHash' FROM statuses WHERE status->>'kind' = 'InvoiceSettled' ORDER BY created DESC LIMIT 1
       )`);
 
     if (rows.length === 1) {
-      const claimable = hi.podToClaimable(rows[0].claimable);
-      if (claimable instanceof Error) {
-        throw claimable;
-      }
-      if (!(claimable.contents instanceof hi.LightningInvoice)) {
-        throw new Error('expected a lightning invoice, for claimable hash: ' + rows[0].hash);
+
+      const invoice = hi.LightningInvoice.fromPOD(rows[0].claimable);
+      if (invoice instanceof Error) {
+        throw invoice;
       }
 
-      const { tags } = hi.decodeBolt11(claimable.contents.paymentRequest);
+
+      const { tags } = hi.decodeBolt11(invoice.paymentRequest);
       for (const tag of tags) {
         if (tag.tagName === 'payment_hash') {
           const lndInvoice = await lightning.lookupInvoice(tag.data as string);
@@ -38,7 +36,7 @@ export default async function processInboundLightning() {
 
     await lightning.subscribeSettledInvoices(lastSettleIndex, async lndInvoice => {
       const { rows } = await db.pool.query(
-        `SELECT hash FROM claimables
+        `SELECT claimable->>'hash' as hash FROM claimables
           WHERE claimable->>'kind' = 'LightningInvoice' AND claimable->>'paymentRequest' = $1`,
         [lndInvoice.payment_request]
       );
@@ -48,7 +46,10 @@ export default async function processInboundLightning() {
         return;
       }
 
-      const invoiceHash = rows[0].hash as string;
+      const invoiceHash = hi.Hash.fromPOD(rows[0].hash);
+      if (invoiceHash instanceof Error) {
+        throw invoiceHash;
+      }
 
       console.log(
         'Marking invoice ',
@@ -59,19 +60,9 @@ export default async function processInboundLightning() {
         lndInvoice.settle_index
       );
 
-      const status = hi.Acknowledged.acknowledge(
-        new hi.Status({
-          kind: 'InvoiceSettled',
-          settlement: {
-            amount: lndInvoice.amt_paid_sat,
-            rPreimage: lndInvoice.r_preimage.toString('hex'),
-            time: new Date(lndInvoice.settle_date * 1000),
-          },
-        }),
-        ackSecretKey
-      );
+      const status = new hi.Status(new hi.StatusInvoiceSettled(invoiceHash, lndInvoice.amt_paid_sat, lndInvoice.r_preimage, new Date(lndInvoice.settle_date * 1000)));
 
-      await insertStatus(invoiceHash, status);
+      await insertStatus(status);
     });
 
     console.log('[lnd] subscribe failed, restarting');

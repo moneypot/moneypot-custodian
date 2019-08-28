@@ -143,12 +143,13 @@ export async function getMemPoolEntryFee(txid: string): Promise<number | undefin
 
 type BumpFeeResult = { txid: string; origfee: number; fee: number; errors: string[] };
 
-export async function bumpFee(txid: string, totalFee: number): Promise<string | Error> {
+// Returns new txid as a uint8array
+export async function bumpFee(txid: string, totalFee: number): Promise<Uint8Array | Error> {
   const res: BumpFeeResult = await jsonClient.call('bumpfee', { totalFee });
   if (res.errors) {
     return new Error(res.errors[0]);
   }
-  return res.txid;
+  return hi.Buffutils.fromHex(res.txid, 32);
 }
 
 function addressType(address: string) {
@@ -165,7 +166,7 @@ function addressType(address: string) {
   throw new Error('unrecognized address: ' + address);
 }
 
-export type CreateTransactionResult = { txid: string; hex: string; fee: number; allOutputs: hi.Hookout[] };
+export type CreateTransactionResult = { txid: Uint8Array; hex: string; fee: number; allOutputs: hi.Hookout[] };
 
 // feeRate of 0 means it's consolidation style feeRate
 export async function createSmartTransaction(
@@ -267,12 +268,12 @@ export async function createSmartTransaction(
   hexstring = signRes.hex;
 
   const decodeRes = await jsonClient.call('decoderawtransaction', { hexstring });
-  const { txid } = decodeRes;
-  if (typeof txid !== 'string' || txid.length === 0) {
+  const txid = hi.Buffutils.fromHex(decodeRes.txid, 32);
+  if (txid instanceof Error) { 
     throw new Error('expected txid to be a string');
   }
 
-  return { txid, hex: hexstring, fee: res.miningFee, allOutputs };
+  return { txid , hex: hexstring, fee: res.miningFee, allOutputs };
 }
 
 // export async function createTransaction(to: string, amount: number, feeRate: number): Promise<CreateTransactionResult> {

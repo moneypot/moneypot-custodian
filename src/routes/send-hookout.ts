@@ -5,15 +5,10 @@ import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 import * as dbStatus from '../db/status';
 
-import { fundingSecretKey } from '../custodian-info';
 import { templateTransactionWeight } from '../config';
 import { ackSecretKey } from '../custodian-info';
 
-export default async function sendHookout(body: any) {
-  const hookout = hi.Hookout.fromPOD(body);
-  if (hookout instanceof Error) {
-    throw hookout;
-  }
+export default async function sendHookout(hookout: hi.Hookout) {
 
   if (!hookout.isAuthorized()) {
     throw 'transfer was not authorized';
@@ -53,12 +48,11 @@ export default async function sendHookout(body: any) {
     throw 'WRONG_FEE_RATE';
   }
 
-  const hookoutHashStr = hookout.hash().toPOD();
+  const hookoutHash = hookout.hash();
 
-  const ackdHookout = hi.Acknowledged.acknowledge(hookout, ackSecretKey);
 
-  const insertRes = await dbTransfer.insertTransfer(ackdHookout);
-  if (insertRes !== 'SUCCESS') {
+  const insertRes = await dbTransfer.insertTransfer(hookout);
+  if (!(insertRes instanceof hi.Acknowledged.default )) {
     throw insertRes;
   }
 
@@ -98,17 +92,8 @@ export default async function sendHookout(body: any) {
             sendTransaction
           );
 
-          await dbStatus.insertStatus(
-            hookoutHashStr,
-            hi.Acknowledged.acknowledge(
-              new hi.Status({
-                kind: 'HookoutFailed',
-                error: sendTransaction.message,
-              }),
-              ackSecretKey
-            ),
-            dbClient
-          );
+          const status = new hi.Status(new hi.StatusFailed(hookoutHash, sendTransaction.message, hookout.fee));
+          await dbStatus.insertStatus(status,        dbClient);
           return;
         }
 
@@ -121,17 +106,8 @@ export default async function sendHookout(body: any) {
 
         // TODO: can be flattened into a single query
         for (const hookout of sendTransaction.allOutputs) {
-          await dbStatus.insertStatus(
-            hookout.hash().toPOD(),
-            hi.Acknowledged.acknowledge(
-              new hi.Status({
-                kind: 'HookoutSucceeded',
-                txid: sendTransaction.txid,
-              }),
-              ackSecretKey
-            ),
-            dbClient
-          );
+          const status = new hi.Status(new hi.StatusBitcoinTransactionSent(hookout.hash(), sendTransaction.txid));
+          await dbStatus.insertStatus(status, dbClient);
         }
 
         // actually send in the background
@@ -153,5 +129,5 @@ export default async function sendHookout(body: any) {
     });
   }
 
-  return ackdHookout.toPOD();
+  return insertRes.toPOD();
 }

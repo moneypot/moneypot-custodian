@@ -1,7 +1,7 @@
 import * as hi from 'hookedin-lib';
 
 import * as nonceLookup from '../util/nonces';
-import { blindingSecretKeys, ackSecretKey } from '../custodian-info';
+import { blindingSecretKeys } from '../custodian-info';
 
 import { pool, withTransaction } from '../db/util';
 
@@ -14,58 +14,44 @@ export default async function claim(body: any) {
     throw claimRequest;
   }
 
-  const claimHash = claimRequest.claimHash.toPOD();
+  const claimHash = claimRequest.claimableHash.toPOD();
 
   return withTransaction(async client => {
-    let claimant;
+    let claimable;
 
     {
       // First we need to know what's being claimed (so we can get the claimant)
       const {
         rows,
-      } = await client.query(`SELECT transfer->>'claimant' AS claimant WHERE hash = $1 FROM transfers FOR UPDATE
-        UNION ALL
-        SELECT hookin->>'claimant' AS claimant FROM hookins WHERE hash = $1 FOR UPDATE
-        UNION ALL
-        SELECT lightning_invoice->>'claimant' AS claimant FROM lightning_invoices WHERE hash = $1 FOR UPDATE
-      `);
+      } = await client.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1 FOR UPDATE`, [claimHash]);
 
       if (rows.length !== 1) {
         throw 'claimable hash not found';
       }
 
-      claimant = hi.PublicKey.fromPOD(rows[0]['claimant']);
-      if (claimant instanceof Error) {
-        throw claimant;
+      claimable = hi.Claimable.fromPOD(rows[0]['claimant']);
+      if (claimable instanceof Error) {
+        throw claimable;
       }
     }
 
-    const { rows } = await client.query(`SELECT status FROM statuses WHERE source_hash = $1`, [claimHash]);
+    const { rows } = await client.query(`SELECT status FROM statuses WHERE status->>'claimableHash = $1`, [claimHash]);
 
-    let toClaim = 0;
-    for (const row of rows) {
-      const status: hi.POD.Status & hi.POD.Acknowledged = row['status'];
-      switch (status.kind) {
-        case 'FeebumpFailed':
-        case 'FeebumpSucceeded':
-        case 'LightningPaymentFailed':
-        case 'LightningPaymentSucceeded':
-        case 'Claimed':
-          break;
-        default:
-          // const _: never = status;
-          throw new Error('unknown status: ' + status);
+    const statuses = rows.map(row => {
+      const s = hi.Status.fromPOD(row['status']);
+      if (s instanceof Error) {
+        throw s;
       }
-    }
+      return s;
+    });
 
-    if (toClaim < 0) {
-      throw new Error('somehow more was claimed than should have been allowed: ' + claimHash);
-    }
+
+    let toClaim = hi.computeClaimableRemaining(claimable, statuses);
     if (toClaim === 0 || toClaim !== claimRequest.amount()) {
       throw 'WRONG_CLAIM_AMOUNT';
     }
 
-    if (!claimRequest.authorization.verify(claimRequest.hash().buffer, claimant)) {
+    if (!claimRequest.authorization.verify(claimRequest.hash().buffer, claimable.c.claimant)) {
       throw 'AUTHORIZATION_FAIL';
     }
 
@@ -90,24 +76,12 @@ export default async function claim(body: any) {
       );
 
       blindedExistenceProofs.push(blindedExistenceProof);
+
     }
 
-    const ackClaimResponse: hi.Acknowledged.ClaimResponse = hi.Acknowledged.acknowledge(
-      new hi.ClaimResponse(claimRequest, blindedExistenceProofs),
-      ackSecretKey
-    );
+    const claimedStatus = new hi.StatusClaimed(claimRequest, blindedExistenceProofs);
 
-    const newStatus = hi.Acknowledged.acknowledge(
-      new hi.Status({
-        kind: 'Claimed',
-        claim: ackClaimResponse.toPOD(),
-        amount: toClaim,
-      }),
-      ackSecretKey
-    );
 
-    await insertStatus(claimHash, newStatus, client);
-
-    return newStatus;
+    return insertStatus(new hi.Status(claimedStatus), client);
   });
 }
