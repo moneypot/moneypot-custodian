@@ -7,11 +7,9 @@ import * as dbStatus from '../db/status';
 import * as lightning from '../lightning';
 
 export default async function sendLightning(payment: hi.LightningPayment) {
-
   if (payment.fee < 100) {
     throw 'min fee is 100 satoshis..';
   }
-
 
   const insertRes = await dbTransfer.insertTransfer(payment);
   if (!(insertRes instanceof hi.Acknowledged.default)) {
@@ -37,7 +35,9 @@ export default async function sendLightning(payment: hi.LightningPayment) {
     }
     assert.strictEqual(sendRes.payment_error, '');
 
-    const status = new hi.Status(new hi.StatusLightningPaymentSent(payment.hash(),sendRes.payment_preimage, sendRes.payment_route.total_fees));
+    const status = new hi.Status(
+      new hi.StatusLightningPaymentSent(payment.hash(), sendRes.payment_preimage, sendRes.payment_route.total_fees)
+    );
     await dbStatus.insertStatus(status);
   })();
 

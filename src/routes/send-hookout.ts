@@ -8,7 +8,6 @@ import * as dbStatus from '../db/status';
 import { templateTransactionWeight } from '../config';
 
 export default async function sendHookout(hookout: hi.Hookout) {
-
   if (!hookout.isAuthorized()) {
     throw 'transfer was not authorized';
   }
@@ -49,9 +48,8 @@ export default async function sendHookout(hookout: hi.Hookout) {
 
   const hookoutHash = hookout.hash();
 
-
   const insertRes = await dbTransfer.insertTransfer(hookout);
-  if (!(insertRes instanceof hi.Acknowledged.default )) {
+  if (!(insertRes instanceof hi.Acknowledged.default)) {
     throw insertRes;
   }
 
@@ -92,7 +90,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
           );
 
           const status = new hi.Status(new hi.StatusFailed(hookoutHash, sendTransaction.message, hookout.fee));
-          await dbStatus.insertStatus(status,        dbClient);
+          await dbStatus.insertStatus(status, dbClient);
           return;
         }
 

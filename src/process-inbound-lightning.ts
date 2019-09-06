@@ -15,12 +15,10 @@ export default async function processInboundLightning() {
       )`);
 
     if (rows.length === 1) {
-
       const invoice = hi.LightningInvoice.fromPOD(rows[0].claimable);
       if (invoice instanceof Error) {
         throw invoice;
       }
-
 
       const { tags } = hi.decodeBolt11(invoice.paymentRequest);
       for (const tag of tags) {
@@ -60,7 +58,14 @@ export default async function processInboundLightning() {
         lndInvoice.settle_index
       );
 
-      const status = new hi.Status(new hi.StatusInvoiceSettled(invoiceHash, lndInvoice.amt_paid_sat, lndInvoice.r_preimage, new Date(lndInvoice.settle_date * 1000)));
+      const status = new hi.Status(
+        new hi.StatusInvoiceSettled(
+          invoiceHash,
+          lndInvoice.amt_paid_sat,
+          lndInvoice.r_preimage,
+          new Date(lndInvoice.settle_date * 1000)
+        )
+      );
 
       await insertStatus(status);
     });

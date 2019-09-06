@@ -30,7 +30,6 @@ export default async function genInvoice(body: any) {
 
   const pod = ackedInvoice.toPOD();
 
-
   try {
     await db.pool.query(
       `INSERT INTO claimables(claimable) VALUES($1)

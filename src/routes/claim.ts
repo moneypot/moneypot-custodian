@@ -21,21 +21,21 @@ export default async function claim(body: any) {
 
     {
       // First we need to know what's being claimed (so we can get the claimant)
-      const {
-        rows,
-      } = await client.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1 FOR UPDATE`, [claimHash]);
+      const { rows } = await client.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1 FOR UPDATE`, [
+        claimHash,
+      ]);
 
       if (rows.length !== 1) {
         throw 'claimable hash not found';
       }
 
-      claimable = hi.claimableFromPOD(rows[0]['claimant']);
+      claimable = hi.claimableFromPOD(rows[0]['claimable']);
       if (claimable instanceof Error) {
         throw claimable;
       }
     }
 
-    const { rows } = await client.query(`SELECT status FROM statuses WHERE status->>'claimableHash = $1`, [claimHash]);
+    const { rows } = await client.query(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [claimHash]);
 
     const statuses = rows.map(row => {
       const s = hi.Status.fromPOD(row['status']);
@@ -44,7 +44,6 @@ export default async function claim(body: any) {
       }
       return s;
     });
-
 
     let toClaim = hi.computeClaimableRemaining(claimable, statuses);
     if (toClaim === 0 || toClaim !== claimRequest.amount()) {
@@ -76,11 +75,9 @@ export default async function claim(body: any) {
       );
 
       blindedExistenceProofs.push(blindedExistenceProof);
-
     }
 
     const claimedStatus = new hi.StatusClaimed(claimRequest, blindedExistenceProofs);
-
 
     return insertStatus(new hi.Status(claimedStatus), client);
   });

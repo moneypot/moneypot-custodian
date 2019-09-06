@@ -5,7 +5,6 @@ import sendHookout from './send-hookout';
 import sendLightning from './send-lightning';
 import addHookin from './add-hookin';
 
-
 export default async function addClaimable(body: any): Promise<hi.POD.Claimable & hi.POD.Acknowledged> {
   const claimable = hi.claimableFromPOD(body);
   if (claimable instanceof Error) {
@@ -16,7 +15,8 @@ export default async function addClaimable(body: any): Promise<hi.POD.Claimable 
     throw 'cant add a lightinginvoice, gen one instead';
   } else if (claimable instanceof hi.Hookin) {
     return addHookin(claimable);
-  } if (claimable instanceof hi.AbstractTransfer) {
+  }
+  if (claimable instanceof hi.AbstractTransfer) {
     if (!claimable.isAuthorized()) {
       throw 'claimable was not authorized';
     }
@@ -30,8 +30,7 @@ export default async function addClaimable(body: any): Promise<hi.POD.Claimable 
     } else {
       throw new Error('unknown abstract transfer');
     }
-  }
-  else { 
+  } else {
     const _: never = claimable;
     throw new Error('unknown claimable');
   }

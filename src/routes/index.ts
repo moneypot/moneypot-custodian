@@ -27,7 +27,7 @@ export default async function runner(req: http.IncomingMessage, res: http.Server
   if (url.startsWith('/claimables/')) {
     return getClaimable(url);
   } else if (url.startsWith('/statuses-by-claimable/')) {
-    return 
+    return;
   } else if (url.startsWith('/coin/')) {
     return coin(url);
   } else if (url.startsWith('/lightning-invoices/claimants/')) {
@@ -40,12 +40,11 @@ export default async function runner(req: http.IncomingMessage, res: http.Server
       case '/gen-nonces':
         return genNonces(body);
       case '/gen-invoice':
-          return genInvoice(body);
+        return genInvoice(body);
       case '/claim':
         return claim(body);
       case '/add-claimable':
         return addClaimable(body);
-
     }
   }
 }

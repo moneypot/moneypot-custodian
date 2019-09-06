@@ -269,11 +269,11 @@ export async function createSmartTransaction(
 
   const decodeRes = await jsonClient.call('decoderawtransaction', { hexstring });
   const txid = hi.Buffutils.fromHex(decodeRes.txid, 32);
-  if (txid instanceof Error) { 
+  if (txid instanceof Error) {
     throw new Error('expected txid to be a string');
   }
 
-  return { txid , hex: hexstring, fee: res.miningFee, allOutputs };
+  return { txid, hex: hexstring, fee: res.miningFee, allOutputs };
 }
 
 // export async function createTransaction(to: string, amount: number, feeRate: number): Promise<CreateTransactionResult> {

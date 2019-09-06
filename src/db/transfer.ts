@@ -10,9 +10,7 @@ import { fundingSecretKey, ackSecretKey } from '../custodian-info';
 
 type InsertRes = hi.Acknowledged.Claimable | 'ALREADY_EXISTS' | 'DOUBLE_SPEND';
 
-export async function insertTransfer(
-  transfer: hi.LightningPayment | hi.Hookout | hi.FeeBump
-): Promise<InsertRes> {
+export async function insertTransfer(transfer: hi.LightningPayment | hi.Hookout | hi.FeeBump): Promise<InsertRes> {
   const transferHash = transfer.hash();
 
   const transferHashStr: string = transferHash.toPOD();
@@ -23,9 +21,7 @@ export async function insertTransfer(
   return withTransaction(async client => {
     let res;
     try {
-      res = await client.query(`INSERT INTO claimables(claimable) VALUES($1)`, [
-        ackdClaimble.toPOD(),
-      ]);
+      res = await client.query(`INSERT INTO claimables(claimable) VALUES($1)`, [ackdClaimble.toPOD()]);
     } catch (err) {
       if (err.code === '23505') {
         switch (err.constraint) {

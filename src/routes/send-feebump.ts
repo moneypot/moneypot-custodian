@@ -5,9 +5,7 @@ import * as dbStatus from '../db/status';
 import * as rpcClient from '../util/rpc-client';
 
 export default async function sendFeeBump(feebump: hi.FeeBump) {
-
   const feeBumpHash = feebump.hash();
-
 
   const insertRes = await dbTransfer.insertTransfer(feebump);
   if (!(insertRes instanceof hi.Acknowledged.default)) {
@@ -21,9 +19,10 @@ export default async function sendFeeBump(feebump: hi.FeeBump) {
 
     const previousFee = await rpcClient.getMemPoolEntryFee(oldTxid);
 
-
     if (previousFee === undefined) {
-      await dbStatus.insertStatus(new hi.Status(new hi.StatusFailed(feeBumpHash, 'transaction was not in mempool', feebump.fee)));
+      await dbStatus.insertStatus(
+        new hi.Status(new hi.StatusFailed(feeBumpHash, 'transaction was not in mempool', feebump.fee))
+      );
       return;
     }
 
@@ -38,7 +37,6 @@ export default async function sendFeeBump(feebump: hi.FeeBump) {
 
     const status = new hi.Status(new hi.StatusBitcoinTransactionSent(feeBumpHash, newTxid));
     await dbStatus.insertStatus(status);
-
   })();
 
   return insertRes.toPOD();
