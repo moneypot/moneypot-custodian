@@ -6,7 +6,6 @@ import * as rpcClient from '../util/rpc-client';
 import * as dbStatus from '../db/status';
 
 import { templateTransactionWeight } from '../config';
-import { ackSecretKey } from '../custodian-info';
 
 export default async function sendHookout(hookout: hi.Hookout) {
 

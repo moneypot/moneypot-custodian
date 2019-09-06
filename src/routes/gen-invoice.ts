@@ -26,9 +26,7 @@ export default async function genInvoice(body: any) {
 
   const invoice = await lightning.addInvoice(claimant, memo, amount);
 
-  const claimable = new hi.Claimable(invoice);
-
-  const ackedInvoice = hi.Acknowledged.acknowledge(claimable, ackSecretKey);
+  const ackedInvoice = hi.Acknowledged.acknowledge(invoice, ackSecretKey);
 
   const pod = ackedInvoice.toPOD();
 

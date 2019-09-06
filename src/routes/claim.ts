@@ -29,7 +29,7 @@ export default async function claim(body: any) {
         throw 'claimable hash not found';
       }
 
-      claimable = hi.Claimable.fromPOD(rows[0]['claimant']);
+      claimable = hi.claimableFromPOD(rows[0]['claimant']);
       if (claimable instanceof Error) {
         throw claimable;
       }
@@ -51,7 +51,7 @@ export default async function claim(body: any) {
       throw 'WRONG_CLAIM_AMOUNT';
     }
 
-    if (!claimRequest.authorization.verify(claimRequest.hash().buffer, claimable.c.claimant)) {
+    if (!claimRequest.authorization.verify(claimRequest.hash().buffer, claimable.claimant)) {
       throw 'AUTHORIZATION_FAIL';
     }
 

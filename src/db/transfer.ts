@@ -17,7 +17,8 @@ export async function insertTransfer(
 
   const transferHashStr: string = transferHash.toPOD();
 
-  const ackdClaimble = hi.Acknowledged.acknowledge(new hi.Claimable(transfer), ackSecretKey);
+  // TODO: use hi.Acknowledged.Transfer type
+  const ackdClaimble: hi.Acknowledged.Claimable = hi.Acknowledged.acknowledge(transfer, ackSecretKey);
 
   return withTransaction(async client => {
     let res;

@@ -6,7 +6,7 @@ import * as dbStatus from '../db/status';
 
 import * as lightning from '../lightning';
 
-export default async function sendLightning(payment: hi.LightningPayment): Promise<hi.POD.Claimable & hi.POD.Acknowledged> {
+export default async function sendLightning(payment: hi.LightningPayment) {
 
   if (payment.fee < 100) {
     throw 'min fee is 100 satoshis..';

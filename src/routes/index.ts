@@ -19,7 +19,7 @@ export default async function runner(req: http.IncomingMessage, res: http.Server
   }
 
   switch (url) {
-    case '/info':
+    case '/':
       return info();
     case '/fee-schedule':
       return feeSchedule();

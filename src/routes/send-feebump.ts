@@ -4,7 +4,7 @@ import * as dbStatus from '../db/status';
 
 import * as rpcClient from '../util/rpc-client';
 
-export default async function sendFeeBump(feebump: hi.FeeBump): Promise<hi.POD.Claimable & hi.POD.Acknowledged> {
+export default async function sendFeeBump(feebump: hi.FeeBump) {
 
   const feeBumpHash = feebump.hash();
 

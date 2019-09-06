@@ -17,16 +17,16 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^12.7.2",
-    "@types/pg": "^7.11.0",
-    "nodemon": "^1.19.1",
+    "@types/node": "^12.7.4",
+    "@types/pg": "^7.11.1",
+    "nodemon": "^1.19.2",
     "prettier": "^1.18.2",
     "ts-node": "^8.3.0",
-    "typescript": "^3.5.3"
+    "typescript": "^3.6.2"
   },
   "dependencies": {
     "@grpc/grpc-js": "^0.5.2",
-    "@grpc/proto-loader": "^0.5.1",
+    "@grpc/proto-loader": "^0.5.2",
     "hookedin-lib": "git+https://github.com/hookedin/hookedin-lib.git",
     "pg": "^7.12.1"
   },
