@@ -11,5 +11,5 @@ export default async function getStatusesByClaimable(url: string) {
 
   const { rows } = await pool.query(`SELECT status FROM statuses WHERE status->>'hash' = $1`, [hash]);
 
-  return rows[0].map((row: any) => row['status'] as hi.POD.Status & hi.POD.Acknowledged);
+  return rows.map((row: any) => row['status'] as hi.POD.Status & hi.POD.Acknowledged);
 }

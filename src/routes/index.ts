@@ -11,6 +11,7 @@ import lightningInvoiceByClaimant from './lightning-invoice-by-claimant';
 
 import readJson from '../util/read-json';
 import addClaimable from './add-claimable';
+import getStatusesByClaimable from './get-statuses-by-claimable';
 
 export default async function runner(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
   const url = req.url;
@@ -27,7 +28,7 @@ export default async function runner(req: http.IncomingMessage, res: http.Server
   if (url.startsWith('/claimables/')) {
     return getClaimable(url);
   } else if (url.startsWith('/statuses-by-claimable/')) {
-    return;
+    return getStatusesByClaimable(url);
   } else if (url.startsWith('/coin/')) {
     return coin(url);
   } else if (url.startsWith('/lightning-invoices/claimants/')) {
