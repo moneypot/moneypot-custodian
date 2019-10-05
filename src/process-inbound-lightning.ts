@@ -1,5 +1,6 @@
 import assert from 'assert';
 import * as hi from 'hookedin-lib';
+import StatusInvoiceSettled from 'hookedin-lib/dist/status/invoice-settled';
 import * as lightning from './lightning/index';
 import * as db from './db/util';
 import { insertStatus } from './db/status';
@@ -58,13 +59,11 @@ export default async function processInboundLightning() {
         lndInvoice.settle_index
       );
 
-      const status = new hi.Status(
-        new hi.StatusInvoiceSettled(
-          invoiceHash,
-          lndInvoice.amt_paid_sat,
-          lndInvoice.r_preimage,
-          new Date(lndInvoice.settle_date * 1000)
-        )
+      const status = new StatusInvoiceSettled(
+        invoiceHash,
+        lndInvoice.amt_paid_sat,
+        lndInvoice.r_preimage,
+        new Date(lndInvoice.settle_date * 1000)
       );
 
       await insertStatus(status);

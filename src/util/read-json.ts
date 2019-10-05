@@ -20,5 +20,7 @@ export default function(req: http.IncomingMessage): Promise<any> {
 
       resolve(json);
     });
+
+    req.on('error', reject);
   });
 }

@@ -57,6 +57,9 @@ export default class JSONRpcClient {
           reject(new Error(err));
         });
       });
+      req.on('error', function(err: any) {
+        reject(new Error(err));
+      });
       req.write(requestJSON);
       req.end();
     });

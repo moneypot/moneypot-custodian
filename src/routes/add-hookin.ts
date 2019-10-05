@@ -2,13 +2,14 @@ import * as hi from 'hookedin-lib';
 import * as rpcClient from '../util/rpc-client';
 
 import ci, { fundingSecretKey, ackSecretKey } from '../custodian-info';
+import processHookin from '../util/process-hookin';
 
 import { pool } from '../db/util';
 
 // body should be { hookin, claimRequest }
 // returns an acknowledgement
 export default async function addHookin(hookin: hi.Hookin) {
-  const txOut = await rpcClient.getTxOut(hookin.txid, hookin.vout);
+  const txOut = await rpcClient.smartGetTxOut(hi.Buffutils.toHex(hookin.txid), hookin.vout);
 
   const expectedAddress = ci.fundingKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
   if (expectedAddress !== txOut.address) {
@@ -22,20 +23,8 @@ export default async function addHookin(hookin: hi.Hookin) {
 
   await pool.query(`INSERT INTO claimables(claimable) VALUES($1) ON CONFLICT DO NOTHING`, [ackdClaimablePOD]);
 
-  // import in the background...
-  importHookin(hookin);
+  // process in the background...
+  processHookin(hookin);
 
   return ackdClaimablePOD;
-}
-
-async function importHookin(hookin: hi.Hookin) {
-  const spendingPrivkey = fundingSecretKey.tweak(hookin.getTweak()).toWif();
-
-  try {
-    await rpcClient.importPrivateKey(spendingPrivkey);
-    await rpcClient.importPrunedFunds(hookin.txid);
-    // await pool.query(`UPDATE hookins SET imported = true WHERE hash = $1`, [hookin.hash().toPOD()]);
-  } catch (err) {
-    console.error('could not import funds!', err);
-  }
 }

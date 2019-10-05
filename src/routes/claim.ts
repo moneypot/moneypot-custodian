@@ -1,4 +1,5 @@
 import * as hi from 'hookedin-lib';
+import StatusClaimed from 'hookedin-lib/dist/status/claimed';
 
 import * as nonceLookup from '../util/nonces';
 import { blindingSecretKeys } from '../custodian-info';
@@ -37,8 +38,8 @@ export default async function claim(body: any) {
 
     const { rows } = await client.query(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [claimHash]);
 
-    const statuses = rows.map(row => {
-      const s = hi.Status.fromPOD(row['status']);
+    const statuses = rows.map((row: any) => {
+      const s = hi.statusFromPOD(row['status']);
       if (s instanceof Error) {
         throw s;
       }
@@ -47,6 +48,7 @@ export default async function claim(body: any) {
 
     let toClaim = hi.computeClaimableRemaining(claimable, statuses);
     if (toClaim === 0 || toClaim !== claimRequest.amount()) {
+      console.log('Trying to claim: ', claimRequest.amount, ' but should be claiming: ', toClaim);
       throw 'WRONG_CLAIM_AMOUNT';
     }
 
@@ -77,8 +79,8 @@ export default async function claim(body: any) {
       blindedExistenceProofs.push(blindedExistenceProof);
     }
 
-    const claimedStatus = new hi.StatusClaimed(claimRequest, blindedExistenceProofs);
+    const claimedStatus = new StatusClaimed(claimRequest, blindedExistenceProofs);
 
-    return insertStatus(new hi.Status(claimedStatus), client);
+    return insertStatus(claimedStatus, client);
   });
 }

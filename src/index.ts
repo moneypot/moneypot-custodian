@@ -1,6 +1,5 @@
 import http from 'http';
 
-import processInboundLightning from './process-inbound-lightning';
 import routes from './routes';
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -8,6 +7,7 @@ const isProd = process.env.NODE_ENV === 'production';
 let reqCounter = 0;
 
 const server = http.createServer(async (req, res) => {
+
   const start = Date.now();
 
   const reqCount = ++reqCounter;
@@ -52,9 +52,9 @@ if (process.env.PORT) {
   port = Number.parseInt(process.env.PORT);
 }
 
-processInboundLightning().catch(err => {
-  console.error('caught process inbound lightning error: ', err);
-});
+// processInboundLightning().catch(err => {
+//   console.error('caught process inbound lightning error: ', err);
+// });
 
 server.listen(port, () => {
   console.log(`Server running at ${port} `);

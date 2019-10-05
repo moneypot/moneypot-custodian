@@ -42,33 +42,94 @@ export async function getRawTransaction(txid: string) {
     const transaction = await jsonClient.call('getrawtransaction', { txid, verbose: false });
     return transaction as string;
   } catch (err) {
-    if (typeof err === 'string' && /Use gettransaction for wallet transactions/.test(err)) {
-      const transaction = await jsonClient.call('gettransaction', { txid });
-      return transaction.hex as string;
+    if (typeof err.message === 'string' && /Use gettransaction for wallet transactions/.test(err.message)) {
+      const info = await getTransaction(txid);
+      return info.hex;
     }
 
-    throw err;
+    throw new Error('getRawTransaction had an error: ' + err);
   }
 }
 
-export async function getTxOut(transactionID: Uint8Array, vout: number) {
+type TransactionInfo = {
+  confirmations: number;
+  fee?: number;
+  blockhash?: string;
+  hex: string;
+};
+
+export async function getTransaction(txid: string) {
+  return (await jsonClient.call('gettransaction', { txid })) as TransactionInfo;
+}
+
+export async function getTxOut(txid: string, vout: number) {
   assert(Number.isSafeInteger(vout) && vout >= 0);
 
-  const txid = hi.Buffutils.toHex(transactionID);
+  const txOutInfo = await jsonClient.call('gettxout', { txid, n: vout });
 
-  // Instead of calling   getTxOut directly, we are going to go through  getRawTransaction
-  // the reason for this is that it works with txindex=1 for when our wallet is annoying and
-  // spends the money someone declares it
+  if (!txOutInfo) {
+    return undefined;
+  }
 
-  // Note this technically uses deprecated behavior (getRawTransaction is supposed to stop working with unspent tx's eventually)
+  return {
+    confirmations: txOutInfo.confirmations as number,
+    amount: Math.round(txOutInfo.amount * 1e8),
+    address: txOutInfo.scriptPubKey.addresses.length === 1 ? (txOutInfo.scriptPubKey.addresses[0] as string) : null,
+  };
+}
 
-  const rawTx = await getRawTransaction(txid);
+export async function smartGetTxOut(txid: string, vout: number) {
+  const r = await getTxOut(txid, vout);
+  if (r !== undefined) {
+    return r;
+  }
 
-  const transaction = await jsonClient.call('decoderawtransaction', { hexstring: rawTx });
+  return getTxOutFromWalletTx(txid, vout);
+}
 
-  assert(transaction.txid === txid);
+type DecodeTransactionResult = {
+  txid: string;
+  hash: string;
+  size: number;
+  vsize: number;
+  weight: number;
+  version: number;
+  locktime: number;
+  vin: {
+    txid: string;
+    vout: number;
+    scriptSig: {
+      asm: string;
+      hex: string;
+    };
+    txinwitness?: string[];
+    sequence: number;
+  }[];
+  vout: {
+    value: number;
+    n: number;
+    scriptPubKey: {
+      asm: string;
+      hex: string;
+      reqSigs: number;
+      type: string;
+      addresses: string[];
+    };
+  }[];
+};
 
-  const output = transaction.vout[vout];
+export async function decodeRawTransaction(hexstring: string) {
+  return (await jsonClient.call('decoderawtransaction', { hexstring })) as DecodeTransactionResult;
+}
+
+export async function getTxOutFromWalletTx(txid: string, vout: number) {
+  assert(Number.isSafeInteger(vout) && vout >= 0);
+
+  const txinfo = await getTransaction(txid);
+
+  const decodedInfo = await decodeRawTransaction(txinfo.hex);
+
+  const output = decodedInfo.vout[vout];
   if (!output) {
     throw new Error('INVALID_TXID_VOUT');
   }
@@ -80,8 +141,17 @@ export async function getTxOut(transactionID: Uint8Array, vout: number) {
   return {
     amount,
     address: output.scriptPubKey.addresses.length === 1 ? output.scriptPubKey.addresses[0] : null,
-    confirmations: transaction.confirmations,
+    confirmations: txinfo.confirmations,
   };
+}
+
+type BlockChainInfo = {
+  chain: 'main' | 'test' | 'regtest';
+  blocks: number;
+  // todo...
+};
+export async function getBlockChainInfo(): Promise<BlockChainInfo> {
+  return await jsonClient.call('getblockchaininfo', {});
 }
 
 export async function importPrivateKey(privkey: string) {
@@ -267,7 +337,7 @@ export async function createSmartTransaction(
   assert.strictEqual(signRes.complete, true);
   hexstring = signRes.hex;
 
-  const decodeRes = await jsonClient.call('decoderawtransaction', { hexstring });
+  const decodeRes = await decodeRawTransaction(hexstring);
   const txid = hi.Buffutils.fromHex(decodeRes.txid, 32);
   if (txid instanceof Error) {
     throw new Error('expected txid to be a string');

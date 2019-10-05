@@ -45,7 +45,7 @@ CREATE TABLE statuses(
 );
 
 CREATE UNIQUE INDEX statuses_hash_idx ON statuses((status->>'hash'));
-CREATE INDEX statuses_claimable_hash_idx ON statuses((status->>'claimableHash'));
+CREATE UNIQUE INDEX statuses_claimable_hash_kind_idx ON statuses((status->>'claimableHash'),  (status->>'kind'));
 CREATE INDEX statuses_kind_idx ON statuses((status->>'kind'));
 
 

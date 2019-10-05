@@ -6,6 +6,9 @@ import * as dbStatus from '../db/status';
 
 import * as lightning from '../lightning';
 
+import StatusFailed from 'hookedin-lib/dist/status/failed';
+import StatusLightningPaymentSent from 'hookedin-lib/dist/status/lightning-payment-sent';
+
 export default async function sendLightning(payment: hi.LightningPayment) {
   if (payment.fee < 100) {
     throw 'min fee is 100 satoshis..';
@@ -21,7 +24,7 @@ export default async function sendLightning(payment: hi.LightningPayment) {
     const sendRes = await lightning.sendPayment(payment);
     if (sendRes instanceof Error) {
       if (sendRes.message === 'SPECIFIC_KNOWN_ERROR') {
-        const status = new hi.Status(new hi.StatusFailed(payment.hash(), sendRes.message, payment.fee));
+        const status = new StatusFailed(payment.hash(), sendRes.message, payment.fee);
         await dbStatus.insertStatus(status);
       }
 
@@ -35,8 +38,10 @@ export default async function sendLightning(payment: hi.LightningPayment) {
     }
     assert.strictEqual(sendRes.payment_error, '');
 
-    const status = new hi.Status(
-      new hi.StatusLightningPaymentSent(payment.hash(), sendRes.payment_preimage, sendRes.payment_route.total_fees)
+    const status = new StatusLightningPaymentSent(
+      payment.hash(),
+      sendRes.payment_preimage,
+      sendRes.payment_route.total_fees
     );
     await dbStatus.insertStatus(status);
   })();

@@ -12,7 +12,10 @@ export async function insertStatus(status: hi.Status, client?: PoolClient) {
 
   const pod = ackStatus.toPOD();
 
-  const res = await connection.query(`INSERT INTO statuses(status) VALUES($1)`, [pod]);
+  const res = await connection.query(
+    `INSERT INTO statuses(status) VALUES($1) ON CONFLICT ((status->>'hash')) DO NOTHING`,
+    [pod]
+  );
   assert.strictEqual(res.rowCount, 1);
 
   return pod;

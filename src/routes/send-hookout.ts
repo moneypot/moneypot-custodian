@@ -1,5 +1,7 @@
-import assert from 'assert';
 import * as hi from 'hookedin-lib';
+import StatusBitcoinTransactionSent from 'hookedin-lib/dist/status/bitcoin-transaction-sent';
+import StatusFailed from 'hookedin-lib/dist/status/failed';
+
 import { withTransaction, pool } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
@@ -89,7 +91,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
             sendTransaction
           );
 
-          const status = new hi.Status(new hi.StatusFailed(hookoutHash, sendTransaction.message, hookout.fee));
+          const status = new StatusFailed(hookoutHash, sendTransaction.message, hookout.fee);
           await dbStatus.insertStatus(status, dbClient);
           return;
         }
@@ -103,7 +105,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
 
         // TODO: can be flattened into a single query
         for (const hookout of sendTransaction.allOutputs) {
-          const status = new hi.Status(new hi.StatusBitcoinTransactionSent(hookout.hash(), sendTransaction.txid));
+          const status = new StatusBitcoinTransactionSent(hookout.hash(), sendTransaction.txid);
           await dbStatus.insertStatus(status, dbClient);
         }
 

@@ -9,7 +9,7 @@ export default async function getStatusesByClaimable(url: string) {
     throw 'INVALID_HASH';
   }
 
-  const { rows } = await pool.query(`SELECT status FROM statuses WHERE status->>'hash' = $1`, [hash]);
+  const { rows } = await pool.query(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [hash]);
 
   return rows.map((row: any) => row['status'] as hi.POD.Status & hi.POD.Acknowledged);
 }
