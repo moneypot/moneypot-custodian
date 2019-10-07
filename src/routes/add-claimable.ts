@@ -8,6 +8,7 @@ import addHookin from './add-hookin';
 export default async function addClaimable(body: any): Promise<hi.POD.Claimable & hi.POD.Acknowledged> {
   const claimable = hi.claimableFromPOD(body);
   if (claimable instanceof Error) {
+    console.warn('could not parse claimable, got: ', claimable);
     throw 'could not parse claimable';
   }
 
