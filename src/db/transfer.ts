@@ -6,33 +6,22 @@ import * as hi from 'hookedin-lib';
 import { withTransaction, pool } from './util';
 import { fundingSecretKey, ackSecretKey } from '../custodian-info';
 
-// Returns true if was able, returns false if already existts
-
-type InsertRes = hi.Acknowledged.Claimable | 'ALREADY_EXISTS' | 'DOUBLE_SPEND';
+// Returns 'DOUBLE_SPEND' on error. On success returns the claimable and if it's new or not
+type InsertRes = [hi.Acknowledged.Claimable, boolean] | 'DOUBLE_SPEND';
 
 export async function insertTransfer(transfer: hi.LightningPayment | hi.Hookout | hi.FeeBump): Promise<InsertRes> {
   const transferHash = transfer.hash();
-
-  const transferHashStr: string = transferHash.toPOD();
 
   // TODO: use hi.Acknowledged.Transfer type
   const ackdClaimble: hi.Acknowledged.Claimable = hi.Acknowledged.acknowledge(transfer, ackSecretKey);
 
   return withTransaction(async client => {
-    let res;
-    try {
-      res = await client.query(`INSERT INTO claimables(claimable) VALUES($1)`, [ackdClaimble.toPOD()]);
-    } catch (err) {
-      if (err.code === '23505') {
-        switch (err.constraint) {
-          case 'claimables_pkey': // TODO: ... verify this..
-            return 'ALREADY_EXISTS';
-        }
-        console.error('unknown error trying to insert transfer into db: ', err);
-      }
-      throw err;
+    let res = await client.query(`INSERT INTO claimables(claimable) VALUES($1) ON CONFLICT DO NOTHING`, [
+      ackdClaimble.toPOD(),
+    ]);
+    if (res.rowCount === 0) {
+      return [ackdClaimble, false];
     }
-
     assert.strictEqual(res.rowCount, 1);
 
     // TODO: do this in a single query...
@@ -51,7 +40,7 @@ export async function insertTransfer(transfer: hi.LightningPayment | hi.Hookout 
       }
     }
 
-    return ackdClaimble;
+    return [ackdClaimble, true];
   });
 }
 

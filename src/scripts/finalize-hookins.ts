@@ -3,7 +3,7 @@ import { pool } from '../db/util';
 import processHookin from '../util/process-hookin';
 
 async function run() {
-    console.log('running query')
+  console.log('running query');
   const { rows } = await pool.query(`
         SELECT * FROM claimables WHERE claimable->>'kind'='Hookin'
         AND NOT EXISTS (
@@ -12,7 +12,6 @@ async function run() {
     `);
 
   for (const row of rows) {
-
     const hookin = hi.Hookin.fromPOD(row.claimable);
     if (hookin instanceof Error) {
       throw hookin;
@@ -26,4 +25,3 @@ async function run() {
 }
 
 run();
-

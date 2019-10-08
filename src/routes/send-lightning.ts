@@ -15,36 +15,40 @@ export default async function sendLightning(payment: hi.LightningPayment) {
   }
 
   const insertRes = await dbTransfer.insertTransfer(payment);
-  if (!(insertRes instanceof hi.Acknowledged.default)) {
+  if (insertRes === 'DOUBLE_SPEND') {
     throw insertRes;
   }
+  const [ackClaimable, isNew] = insertRes;
 
-  (async function() {
-    // send in the background
-    const sendRes = await lightning.sendPayment(payment);
-    if (sendRes instanceof Error) {
-      if (sendRes.message === 'SPECIFIC_KNOWN_ERROR') {
-        const status = new StatusFailed(payment.hash(), sendRes.message, payment.fee);
-        await dbStatus.insertStatus(status);
+  if (isNew) {
+
+    (async function() {
+      // send in the background
+      const sendRes = await lightning.sendPayment(payment);
+      if (sendRes instanceof Error) {
+        if (sendRes.message === 'SPECIFIC_KNOWN_ERROR') {
+          const status = new StatusFailed(payment.hash(), sendRes.message, payment.fee);
+          await dbStatus.insertStatus(status);
+        }
+
+        console.error(
+          'INTERNAL_ERROR lightning payment: ',
+          payment.hash().toPOD(),
+          ' is in unknown state. Got error: ',
+          sendRes
+        );
+        return;
       }
+      assert.strictEqual(sendRes.payment_error, '');
 
-      console.error(
-        'INTERNAL_ERROR lightning payment: ',
-        payment.hash().toPOD(),
-        ' is in unknown state. Got error: ',
-        sendRes
+      const status = new StatusLightningPaymentSent(
+        payment.hash(),
+        sendRes.payment_preimage,
+        sendRes.payment_route.total_fees
       );
-      return;
-    }
-    assert.strictEqual(sendRes.payment_error, '');
+      await dbStatus.insertStatus(status);
+    })();
+  }
 
-    const status = new StatusLightningPaymentSent(
-      payment.hash(),
-      sendRes.payment_preimage,
-      sendRes.payment_route.total_fees
-    );
-    await dbStatus.insertStatus(status);
-  })();
-
-  return insertRes.toPOD();
+  return ackClaimable.toPOD();
 }

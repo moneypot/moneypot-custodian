@@ -7,7 +7,6 @@ const isProd = process.env.NODE_ENV === 'production';
 let reqCounter = 0;
 
 const server = http.createServer(async (req, res) => {
-
   const start = Date.now();
 
   const reqCount = ++reqCounter;

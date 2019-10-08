@@ -11,34 +11,37 @@ export default async function sendFeeBump(feebump: hi.FeeBump) {
   const feeBumpHash = feebump.hash();
 
   const insertRes = await dbTransfer.insertTransfer(feebump);
-  if (!(insertRes instanceof hi.Acknowledged.default)) {
+  if (insertRes === 'DOUBLE_SPEND') {
     throw insertRes;
   }
+  const [ackClaimable, isNew] = insertRes;
 
-  (async function() {
+  if (isNew) {
     // send in the background
 
-    const oldTxid: string = hi.Buffutils.toHex(feebump.txid);
+    (async function() {
+      const oldTxid: string = hi.Buffutils.toHex(feebump.txid);
 
-    const previousFee = await rpcClient.getMemPoolEntryFee(oldTxid);
+      const previousFee = await rpcClient.getMemPoolEntryFee(oldTxid);
 
-    if (previousFee === undefined) {
-      await dbStatus.insertStatus(new StatusFailed(feeBumpHash, 'transaction was not in mempool', feebump.fee));
-      return;
-    }
+      if (previousFee === undefined) {
+        await dbStatus.insertStatus(new StatusFailed(feeBumpHash, 'transaction was not in mempool', feebump.fee));
+        return;
+      }
 
-    const newTxid = await rpcClient.bumpFee(oldTxid, previousFee + feebump.amount);
+      const newTxid = await rpcClient.bumpFee(oldTxid, previousFee + feebump.amount);
 
-    if (newTxid instanceof Error) {
-      const status = new StatusFailed(feeBumpHash, newTxid.message, feebump.fee);
+      if (newTxid instanceof Error) {
+        const status = new StatusFailed(feeBumpHash, newTxid.message, feebump.fee);
 
+        await dbStatus.insertStatus(status);
+        return;
+      }
+
+      const status = new StatusBitcoinTransactionSent(feeBumpHash, newTxid);
       await dbStatus.insertStatus(status);
-      return;
-    }
+    })();
+  }
 
-    const status = new StatusBitcoinTransactionSent(feeBumpHash, newTxid);
-    await dbStatus.insertStatus(status);
-  })();
-
-  return insertRes.toPOD();
+  return ackClaimable.toPOD();
 }
