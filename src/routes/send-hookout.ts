@@ -7,24 +7,22 @@ import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 import * as dbStatus from '../db/status';
 
-import { templateTransactionWeight } from '../config';
+import calcFeeSchedule from './fee-schedule';
 
 export default async function sendHookout(hookout: hi.Hookout) {
   if (!hookout.isAuthorized()) {
     throw 'transfer was not authorized';
   }
 
-  const feeRate = hookout.fee / templateTransactionWeight;
-
-  const immediateFeeRate = await rpcClient.getImmediateFeeRate();
+  const feeSchedule = await calcFeeSchedule();
 
   let expectedFee;
   switch (hookout.priority) {
     case 'IMMEDIATE':
-      expectedFee = Math.round(immediateFeeRate * templateTransactionWeight);
+      expectedFee = feeSchedule.immediate;
       break;
     case 'BATCH':
-      expectedFee = Math.round(immediateFeeRate * 32); // TODO: factor 32 out (it's the size of an output..)
+      expectedFee = feeSchedule.batch;
       break;
     case 'FREE':
       if (hookout.amount < 0.01e8) {
@@ -33,8 +31,8 @@ export default async function sendHookout(hookout: hi.Hookout) {
       expectedFee = 0;
       break;
     case 'CUSTOM':
-      if (feeRate < 0.25) {
-        throw 'fee was ' + feeRate + ' but require a feerate of at least 0.25';
+      if (hookout.fee < 141) {
+        throw 'fee was ' + hookout.fee + ' but require a feerate of at least 141';
       }
       expectedFee = hookout.fee;
       break;
@@ -82,11 +80,11 @@ export default async function sendHookout(hookout: hi.Hookout) {
       if (hookout.priority !== 'BATCH') {
         const noChange = hookout.priority === 'FREE';
 
-        let sendTransaction = await rpcClient.createSmartTransaction(hookout, otherHookouts, feeRate, noChange);
+        let sendTransaction = await rpcClient.createSmartTransaction(hookout, otherHookouts, feeSchedule.immediateFeeRate, noChange);
         if (sendTransaction instanceof Error) {
           console.warn(
             'could not create the transaction, to: ',
-            { hookout: hookout.toPOD(), otherHookouts: otherHookouts.map(h => h.toPOD), feeRate, noChange },
+            { hookout: hookout.toPOD(), otherHookouts: otherHookouts.map(h => h.toPOD), feeRate: feeSchedule.immediateFeeRate, noChange },
             'got error: ',
             sendTransaction
           );
