@@ -7,6 +7,6 @@ steps:
   args: ['push', 'gcr.io/hi-dev-238305/captain-hook']
   # Deploy container image to Cloud Run
 - name: 'gcr.io/cloud-builders/gcloud'
-  args: ['beta', 'run', 'deploy', 'captain-hook', '--image', 'gcr.io/hi-dev-238305/captain-hook', '--region', 'us-central1']
+  args: ['beta', 'run', 'deploy', 'captain-hook', '--image', 'gcr.io/hi-dev-238305/captain-hook', '--platform', 'managed', '--region', 'us-central1']
 images:
 - gcr.io/hi-dev-238305/captain-hook
