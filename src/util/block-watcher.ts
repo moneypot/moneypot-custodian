@@ -5,7 +5,6 @@ export default class BlockWatcher extends EventEmitter {
   constructor() {
     super();
 
-    // TODO: how to handle errors?
     (async () => {
       let bestBlock = 0;
       while (true) {
@@ -16,6 +15,9 @@ export default class BlockWatcher extends EventEmitter {
           bestBlock = info.blocks;
         }
       }
-    })();
+    })().catch(err => {
+      // TODO: how to handle errors?
+      console.error('[INTERNAL_ERROR] block watcher caught an error: ', err);
+    });
   }
 }

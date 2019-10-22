@@ -10,7 +10,7 @@ import Mutex from '../mutex';
 
 import { SendPaymentRes, LndInvoice } from './types';
 
-const packageDefinition = protoLoader.loadSync('lnd-rpc.proto', {
+const packageDefinition = protoLoader.loadSync(['lnd-rpc.proto', 'lnd-invoices.proto'], {
   keepCase: true,
   longs: Number,
   enums: String,
@@ -18,7 +18,10 @@ const packageDefinition = protoLoader.loadSync('lnd-rpc.proto', {
   oneofs: true,
 });
 
-const lnrpc = grpc.loadPackageDefinition(packageDefinition).lnrpc as any;
+const packageDef = grpc.loadPackageDefinition(packageDefinition);
+const lnrpc = packageDef.lnrpc as any;
+const invoicesrpc = packageDef.invoicesrpc as any;
+
 process.env.GRPC_SSL_CIPHER_SUITES = 'HIGH+ECDSA';
 
 let sslCreds = grpc.credentials.createSsl(Buffer.from(args.cert, 'utf8'));
@@ -30,7 +33,9 @@ let macaroonCreds = grpc.credentials.createFromMetadataGenerator(function(mArgs:
 });
 
 let creds = grpc.credentials.combineChannelCredentials(sslCreds, macaroonCreds);
+
 let lightning = new lnrpc.Lightning(args.host, creds);
+let invoices = new invoicesrpc.Invoices(args.host, creds);
 
 const notifMutex = new Mutex();
 
@@ -92,29 +97,57 @@ export async function lookupInvoice(r_hash_str: string): Promise<LndInvoice> {
   return await lightningLookupInvoice({ r_hash_str });
 }
 
+function paymentRequestToRHash(paymentRequest: string) {
+  const pro = hi.decodeBolt11(paymentRequest);
+  if (pro instanceof Error) {
+    throw pro;
+  }
+  for (const tag of pro.tags) {
+    if (tag.tagName === 'payment_hash') {
+      return tag.data as string;
+    }
+  }
+
+  throw new Error('assertion: could not find rhash in payment request: ' + paymentRequest);
+}
+
+export async function lookupInvoicebyPaymentRequest(paymentRequest: string) {
+  return lookupInvoice(paymentRequestToRHash(paymentRequest));
+}
+
 const lightningSendPayment = promisify(
   (arg: { amt: number; payment_request: string; fee_limit: { fixed: number } }, cb: (err: Error, x: any) => any) =>
     lightning.sendPaymentSync(arg, cb)
 );
 
-export async function sendPayment(payment: hi.LightningPayment): Promise<Error | SendPaymentRes> {
-  let sendRes;
-  try {
-    sendRes = await lightningSendPayment({
-      amt: payment.amount,
-      payment_request: payment.paymentRequest,
-      fee_limit: { fixed: payment.fee },
-    });
-  } catch (err) {
-    // just being paranoid and making sure it's an error
-    if (err instanceof Error) {
-      return err;
-    } else {
-      throw err;
-    }
+export async function sendPayment(payment: hi.LightningPayment): Promise<SendPaymentRes> {
+  return await lightningSendPayment({
+    amt: payment.amount,
+    payment_request: payment.paymentRequest,
+    fee_limit: { fixed: payment.fee },
+  });
+}
+
+const lightningCancelInvoice = promisify((arg: { payment_hash: Uint8Array }, cb: (err: Error, x: any) => any) =>
+  invoices.cancelInvoice(arg, cb)
+);
+
+export async function cancelInvoice(paymentHash: string): Promise<undefined | Error> {
+  const bytes = hi.Buffutils.fromHex(paymentHash);
+  if (bytes instanceof Error) {
+    throw bytes;
   }
 
-  console.log('after sending a lightningPayment, got the result: ', sendRes);
+  try {
+    await lightningCancelInvoice({ payment_hash: bytes });
+  } catch (err) {
+    if (!(err instanceof Error)) {
+      err = new Error(err);
+    }
+    return err;
+  }
+}
 
-  return sendRes;
+export async function cancelInvoiceByPaymentRequest(paymentRequest: string) {
+  return cancelInvoice(paymentRequestToRHash(paymentRequest));
 }

@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "npm run build && npm run start",
+    "dev": "ts-node src/index",
     "finalize": "ts-node src/scripts/finalize-hookins.ts",
     "start": "node dist/index.js",
     "watch-node": "nodemon dist/index.js",
@@ -18,12 +18,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^12.7.12",
+    "@types/node": "^12.11.1",
     "@types/pg": "^7.11.2",
-    "nodemon": "^1.19.3",
+    "nodemon": "^1.19.4",
     "prettier": "^1.18.2",
     "ts-node": "^8.4.1",
-    "typescript": "^3.6.3"
+    "typescript": "^3.6.4"
   },
   "dependencies": {
     "@grpc/grpc-js": "^0.5.4",

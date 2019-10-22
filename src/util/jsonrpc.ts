@@ -1,5 +1,6 @@
 import assert from 'assert';
 import http from 'http';
+import { decode } from 'punycode';
 
 export default class JSONRpcClient {
   host: string;
@@ -45,12 +46,10 @@ export default class JSONRpcClient {
             return;
           }
 
-          if (decoded.result) {
-            resolve(decoded.result);
-          } else if (decoded.error) {
+          if (decoded.error) {
             reject(new Error(JSON.stringify(decoded.error)));
           } else {
-            resolve();
+            resolve(decoded.result);
           }
         });
         res.on('error', function(err: any) {

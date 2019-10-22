@@ -7,29 +7,7 @@ import { insertStatus } from './db/status';
 
 export default async function processInboundLightning() {
   while (true) {
-    let lastSettleIndex = 0;
-
-    // To find the ~last settledInvoice, we're going to search for the last invoice in our db that was settled
-    // then look it up
-    const { rows } = await db.pool.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = (
-        SELECT status->>'claimableHash' FROM statuses WHERE status->>'kind' = 'InvoiceSettled' ORDER BY created DESC LIMIT 1
-      )`);
-
-    if (rows.length === 1) {
-      const invoice = hi.LightningInvoice.fromPOD(rows[0].claimable);
-      if (invoice instanceof Error) {
-        throw invoice;
-      }
-
-      const { tags } = hi.decodeBolt11(invoice.paymentRequest);
-      for (const tag of tags) {
-        if (tag.tagName === 'payment_hash') {
-          const lndInvoice = await lightning.lookupInvoice(tag.data as string);
-          lastSettleIndex = lndInvoice.settle_index;
-        }
-      }
-    }
-    assert(Number.isSafeInteger(lastSettleIndex));
+    const lastSettleIndex = await getLastSettleInvoiceIndex();
 
     console.log('Going to subscribe to invoices. Highest processed is: ', lastSettleIndex);
 
@@ -41,7 +19,7 @@ export default async function processInboundLightning() {
       );
 
       if (rows.length !== 1) {
-        console.warn('Could not find invoice with payment_request of: ', lndInvoice.payment_request);
+        console.warn('warn: could not find invoice with payment_request of: ', lndInvoice.payment_request);
         return;
       }
 
@@ -52,7 +30,7 @@ export default async function processInboundLightning() {
 
       console.log(
         'Marking invoice ',
-        invoiceHash,
+        invoiceHash.toPOD(),
         ' as paid: ',
         lndInvoice.amt_paid_sat,
         'sats #',
@@ -70,5 +48,41 @@ export default async function processInboundLightning() {
     });
 
     console.log('[lnd] subscribe failed, restarting');
+  }
+}
+
+async function getLastSettleInvoiceIndex(before: Date = new Date()): Promise<number> {
+  // To find the ~last settledInvoice, we're going to search for the last invoice in our db that was settled
+  // then look it up
+  const { rows } = await db.pool.query(
+    `
+      WITH x AS (
+        SELECT status->>'claimableHash' as claimableHash, created
+        FROM statuses WHERE status->>'kind' = 'InvoiceSettled'
+        AND created < $1
+        ORDER BY created DESC LIMIT 1
+      )
+      SELECT claimable, x.created as settled_time FROM claimables, x WHERE claimable->>'hash' = x.claimableHash`,
+    [before]
+  );
+
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  const row = rows[0];
+  assert(row.settled_time instanceof Date);
+
+  const invoice = hi.LightningInvoice.fromPOD(row.claimable);
+  if (invoice instanceof Error) {
+    throw invoice;
+  }
+
+  const lndInvoice = await lightning.lookupInvoicebyPaymentRequest(invoice.paymentRequest);
+  if (lndInvoice.settle_index > 0) {
+    return lndInvoice.settle_index;
+  } else {
+    // because of fake send-to-self it's quite possible it has no settle index
+    return getLastSettleInvoiceIndex(row.settled_time);
   }
 }

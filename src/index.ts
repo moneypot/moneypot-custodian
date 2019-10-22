@@ -1,6 +1,7 @@
 import http from 'http';
 
 import routes from './routes';
+import processInboundLightning from './process-inbound-lightning';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -51,9 +52,9 @@ if (process.env.PORT) {
   port = Number.parseInt(process.env.PORT);
 }
 
-// processInboundLightning().catch(err => {
-//   console.error('caught process inbound lightning error: ', err);
-// });
+processInboundLightning().catch(err => {
+  console.error('INTERNAL_ERROR caught process inbound lightning error: ', err);
+});
 
 server.listen(port, () => {
   console.log(`Server running at ${port} `);
