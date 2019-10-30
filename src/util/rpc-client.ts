@@ -6,7 +6,7 @@ import JSONRpcClient from './jsonrpc';
 
 //let jsonClient = new JSONRpcClient('127.0.0.1', 18332, 'testnetdev', 'l5JwLwtAXnaF');
 let jsonClient = new JSONRpcClient(
-  '212.47.230.157', // '45.76.42.51',
+  '51.158.116.167',
   18332,
   '7eb0be46532a36b1e7a2d86bac99b4d78c238fe470a3c0f86b113677e07a744b',
   'beef54c52615f195fced6b89ee4677a2324b6b34d29d79e645546e09dab161f8'
