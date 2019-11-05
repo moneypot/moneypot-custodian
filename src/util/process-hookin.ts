@@ -14,9 +14,14 @@ export default async function processHookin(hookin: hi.Hookin) {
   await importHookin(hookin);
 
   let check = async () => {
-    console.log('Checking hookin: ', hi.Buffutils.toHex(hookin.txid), ':', hookin.vout);
+    const txid = hi.Buffutils.toHex(hookin.txid);
+    console.log('Checking hookin: ', txid, ':', hookin.vout);
 
-    const txinfo = await rpcClient.smartGetTxOut(hi.Buffutils.toHex(hookin.txid), hookin.vout);
+    const txinfo = await rpcClient.getTxOut(txid, hookin.vout);
+    if (!txinfo) {
+      console.log('[warn] could not find txout for ', txid, ':', hookin.vout, ' .. so ignoring');
+      return;
+    }
     // TODO: handle not found..
 
     if (txinfo.confirmations > 3) {
@@ -36,5 +41,5 @@ async function importHookin(hookin: hi.Hookin) {
   const spendingPrivkey = fundingSecretKey.tweak(hookin.getTweak()).toWif();
 
   await rpcClient.importPrivateKey(spendingPrivkey);
-  await rpcClient.importPrunedFunds(hookin.txid);
+  await rpcClient.importPrunedFunds(hookin.txid, hookin.vout);
 }

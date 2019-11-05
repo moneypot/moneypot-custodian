@@ -10,6 +10,9 @@ import { pool } from '../db/util';
 // returns an acknowledgement
 export default async function addHookin(hookin: hi.Hookin) {
   const txOut = await rpcClient.smartGetTxOut(hi.Buffutils.toHex(hookin.txid), hookin.vout);
+  if (!txOut) {
+    throw 'could not find txout';
+  }
 
   const expectedAddress = ci.fundingKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
   if (expectedAddress !== txOut.address) {

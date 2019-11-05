@@ -115,12 +115,13 @@ export default async function sendHookout(hookout: hi.Hookout) {
             await dbStatus.insertStatus(status, dbClient);
             return;
           }
+          const txid = hi.Buffutils.toHex(sendTransaction.txid);
 
           await dbClient.query(
             `INSERT INTO bitcoin_transactions(txid, hex, fee, status)
       VALUES($1, $2, $3, 'SENDING')
     `,
-            [hi.Buffutils.toHex(sendTransaction.txid), sendTransaction.hex, sendTransaction.fee]
+            [txid, sendTransaction.hex, sendTransaction.fee]
           );
 
           // TODO: can be flattened into a single query
@@ -134,7 +135,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
             try {
               await rpcClient.sendRawTransaction(sendTransaction.hex);
               await pool.query(`UPDATE bitcoin_transactions SET status = 'SENT' WHERE txid = $1`, [
-                sendTransaction.txid,
+                txid,
               ]);
             } catch (err) {
               console.error(

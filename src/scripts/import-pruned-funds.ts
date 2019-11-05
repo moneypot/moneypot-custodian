@@ -24,7 +24,7 @@ async function run() {
     console.log('prebalance: ', await rpcClient.getBalance());
 
     await rpcClient.importPrivateKey(spendingPrivkey.toWif());
-    await rpcClient.importPrunedFunds(hookin.txid);
+    await rpcClient.importPrunedFunds(hookin.txid, hookin.vout);
 
     console.log('postbalance: ', await rpcClient.getBalance());
 

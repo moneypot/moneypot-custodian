@@ -36,18 +36,39 @@ export async function getBalance(): Promise<number> {
   return Math.round(b * 1e8);
 }
 
+export async function getRawTransaction(txid: string, blockhash: string|undefined) {
+  const transaction = await jsonClient.call('getrawtransaction', { txid, verbose: false, blockhash });
+  return transaction as string;
+}
+
+
 // returns as hex...
-export async function getRawTransaction(txid: string) {
+export async function getSmartRawTransaction(txid: string, unspentVout?: number) {
+
+  let blockhash;
+  if (unspentVout !== undefined) {
+    blockhash = await getBlockHashOfUtxo(txid, unspentVout);
+    if (blockhash instanceof Error) {
+      return blockhash;
+    }
+    console.log('using block hash: ', blockhash);
+  }
+
+
   try {
-    const transaction = await jsonClient.call('getrawtransaction', { txid, verbose: false });
-    return transaction as string;
+    return getRawTransaction(txid, blockhash);
   } catch (err) {
+    console.log('[rpc] grt didnt work')
     if (typeof err.message === 'string' && /Use gettransaction for wallet transactions/.test(err.message)) {
+      console.log('[rpc] trying gtc')
       const info = await getTransaction(txid);
+      if (!info) {
+        return new Error('could not lookup transaction');
+      }
       return info.hex;
     }
 
-    throw new Error('getRawTransaction had an error: ' + err);
+    return err;
   }
 }
 
@@ -59,7 +80,17 @@ type TransactionInfo = {
 };
 
 export async function getTransaction(txid: string) {
-  return (await jsonClient.call('gettransaction', { txid })) as TransactionInfo;
+  let txinfo;
+  try {
+    txinfo = await jsonClient.call('gettransaction', { txid });
+  } catch (err) {
+    if (err.message === 'Invalid or non-wallet transaction id') {
+      return undefined;
+    }
+    throw err;
+  }
+
+  return txinfo as TransactionInfo;
 }
 
 export async function getTxOut(txid: string, vout: number) {
@@ -72,6 +103,7 @@ export async function getTxOut(txid: string, vout: number) {
   }
 
   return {
+    bestBlock: txOutInfo.bestblock as string,
     confirmations: txOutInfo.confirmations as number,
     amount: Math.round(txOutInfo.amount * 1e8),
     address: txOutInfo.scriptPubKey.addresses.length === 1 ? (txOutInfo.scriptPubKey.addresses[0] as string) : null,
@@ -126,6 +158,9 @@ export async function getTxOutFromWalletTx(txid: string, vout: number) {
   assert(Number.isSafeInteger(vout) && vout >= 0);
 
   const txinfo = await getTransaction(txid);
+  if (!txinfo) {
+    return undefined;
+  }
 
   const decodedInfo = await decodeRawTransaction(txinfo.hex);
 
@@ -158,10 +193,24 @@ export async function importPrivateKey(privkey: string) {
   await jsonClient.call('importprivkey', { privkey, rescan: false });
 }
 
-export async function importPrunedFunds(transactionId: Uint8Array) {
+export async function importPrunedFunds(transactionId: Uint8Array, vout: number) {
+
+
   const txid = hi.Buffutils.toHex(transactionId);
 
-  const rawtransaction = await getRawTransaction(txid);
+  console.log('trying to import: ', txid, vout)
+
+
+  const rawtransaction = await getSmartRawTransaction(txid, vout);
+  if (rawtransaction instanceof Error) {
+    if (rawtransaction.message === 'could not find utxo') {
+      console.log('imported funds already spent, skipping');
+      return;
+    }
+    throw rawtransaction;
+  }
+
+
   let txoutproof;
   try {
     txoutproof = await jsonClient.call('gettxoutproof', { txids: [txid] });
@@ -282,6 +331,7 @@ export async function createSmartTransaction(
       })),
     ],
   };
+  console.log('calling claimsayer: ', p);
   const res = await coinsayer.req(p);
   console.log('got coinsayer result: ', res);
 
@@ -345,6 +395,41 @@ export async function createSmartTransaction(
 
   return { txid, hex: hexstring, fee: res.miningFee, allOutputs };
 }
+
+export async function getBlockHash(height: number) {
+  const res = await jsonClient.call('getblockhash', { height });
+  return res as string;
+}
+
+export async function getBlock(blockhash: string) {
+
+  const res = await jsonClient.call('getblock', { blockhash });
+
+  return {
+    hash: res.hash as string,
+    confirmations: res.confirmations as number,
+    height: res.height as number
+  };
+}
+
+async function getBlockHashOfUtxo(txid: string, vout: number): Promise<string | Error> {
+  const info = await getTxOut(txid, vout);
+  if (!info) {
+    return new Error('could not find utxo');
+  }
+  const block = await getBlock(info.bestBlock);
+  if (block.confirmations < 0) {
+    console.warn('[warning] best block was orphaned, retrying...');
+    return getBlockHashOfUtxo(txid, vout);
+  }
+
+  const newHeight = block.height - info.confirmations + 1;
+  return getBlockHash(newHeight);
+}
+
+
+
+
 
 // export async function createTransaction(to: string, amount: number, feeRate: number): Promise<CreateTransactionResult> {
 //   const inBtc = (amount / 1e8).toFixed(8);
