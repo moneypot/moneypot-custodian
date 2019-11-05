@@ -6,12 +6,21 @@ import { withTransaction, pool } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 import * as dbStatus from '../db/status';
+import * as config from '../config';
 
 import calcFeeSchedule from './fee-schedule';
 
 export default async function sendHookout(hookout: hi.Hookout) {
   if (!hookout.isAuthorized()) {
     throw 'transfer was not authorized';
+  }
+
+  const addressInfo = hi.decodeBitcoinAddress(hookout.bitcoinAddress);
+  if (addressInfo instanceof Error) {
+    throw 'trying to send to invalid bitcoin address';
+  }
+  if (addressInfo.network !== config.network) {
+    throw 'bitcoin address from wrong network';
   }
 
   const feeSchedule = await calcFeeSchedule();

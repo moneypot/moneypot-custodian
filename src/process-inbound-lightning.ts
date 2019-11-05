@@ -78,7 +78,13 @@ async function getLastSettleInvoiceIndex(before: Date = new Date()): Promise<num
     throw invoice;
   }
 
+  console.log('looking up invoice: ', invoice.paymentRequest);
+
   const lndInvoice = await lightning.lookupInvoicebyPaymentRequest(invoice.paymentRequest);
+  if (!lndInvoice) {
+    return 0;
+  }
+
   if (lndInvoice.settle_index > 0) {
     return lndInvoice.settle_index;
   } else {

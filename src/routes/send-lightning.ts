@@ -81,6 +81,9 @@ async function sendPayment(payment: hi.LightningPayment) {
 
     // Let's look it up, so we can find hte preimage
     const lndInvoice = await lightning.lookupInvoicebyPaymentRequest(invoice.paymentRequest);
+    if (!lndInvoice) {
+      throw new Error('could not lookup settled invoice');
+    }
 
     // Ok, we're going to fake a transfer
     const settleTime = new Date();

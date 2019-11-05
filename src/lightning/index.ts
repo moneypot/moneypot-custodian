@@ -92,9 +92,16 @@ const lightningLookupInvoice = promisify((arg: { r_hash_str: string }, cb: (err:
   lightning.lookupInvoice(arg, cb)
 );
 
-export async function lookupInvoice(r_hash_str: string): Promise<LndInvoice> {
+export async function lookupInvoice(r_hash_str: string): Promise<LndInvoice | undefined> {
   // TODO: how to handle failure?
-  return await lightningLookupInvoice({ r_hash_str });
+  try {
+    return await lightningLookupInvoice({ r_hash_str });
+  } catch (err) {
+    if (err.details === 'unable to locate invoice') {
+      return undefined;
+    }
+    throw err;
+  }
 }
 
 function paymentRequestToRHash(paymentRequest: string) {
