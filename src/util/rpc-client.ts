@@ -51,7 +51,6 @@ export async function getSmartRawTransaction(txid: string, unspentVout?: number)
     if (blockhash instanceof Error) {
       return blockhash;
     }
-    console.log('using block hash: ', blockhash);
   }
 
 
@@ -412,11 +411,17 @@ export async function getBlock(blockhash: string) {
   };
 }
 
-async function getBlockHashOfUtxo(txid: string, vout: number): Promise<string | Error> {
+// undefined if it's not in a block
+async function getBlockHashOfUtxo(txid: string, vout: number): Promise<string | undefined | Error> {
   const info = await getTxOut(txid, vout);
   if (!info) {
     return new Error('could not find utxo');
   }
+  if (info.confirmations <= 0) {
+    return undefined;
+  }
+
+
   const block = await getBlock(info.bestBlock);
   if (block.confirmations < 0) {
     console.warn('[warning] best block was orphaned, retrying...');

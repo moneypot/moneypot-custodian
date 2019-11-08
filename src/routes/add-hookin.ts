@@ -1,5 +1,6 @@
 import * as hi from 'hookedin-lib';
 import * as rpcClient from '../util/rpc-client';
+import * as assert from 'assert';
 
 import ci, { fundingSecretKey, ackSecretKey } from '../custodian-info';
 import processHookin from '../util/process-hookin';
@@ -8,7 +9,9 @@ import { pool } from '../db/util';
 
 // body should be { hookin, claimRequest }
 // returns an acknowledgement
-export default async function addHookin(hookin: hi.Hookin) {
+type R = hi.POD.Hookin & hi.POD.Acknowledged & { kind: 'Hookin' };
+export default async function addHookin(hookin: hi.Hookin): Promise<R> {
+
   const txOut = await rpcClient.smartGetTxOut(hi.Buffutils.toHex(hookin.txid), hookin.vout);
   if (!txOut) {
     throw 'could not find txout';
@@ -22,7 +25,7 @@ export default async function addHookin(hookin: hi.Hookin) {
 
   const ackdClaimable = hi.Acknowledged.acknowledge(hookin, ackSecretKey);
 
-  const ackdClaimablePOD = ackdClaimable.toPOD();
+  const ackdClaimablePOD = ackdClaimable.toPOD() as R;
 
   await pool.query(`INSERT INTO claimables(claimable) VALUES($1) ON CONFLICT DO NOTHING`, [ackdClaimablePOD]);
 

@@ -47,7 +47,11 @@ export default class JSONRpcClient {
           }
 
           if (decoded.error) {
-            reject(new Error(JSON.stringify(decoded.error)));
+
+            const error = new Error('rpc error');
+            Object.assign(error, { method, params}, decoded.error);
+
+            reject(error);
           } else {
             resolve(decoded.result);
           }
