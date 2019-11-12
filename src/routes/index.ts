@@ -31,7 +31,7 @@ export default async function runner(req: http.IncomingMessage, res: http.Server
     return getStatusesByClaimable(url);
   } else if (url.startsWith('/coin/')) {
     return coin(url);
-  } else if (url.startsWith('/lightning-invoices/claimants/')) {
+  } else if (url.startsWith('/lightning-invoices-by-claimant/')) {
     return lightningInvoiceByClaimant(url);
   }
 

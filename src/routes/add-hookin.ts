@@ -11,7 +11,6 @@ import { pool } from '../db/util';
 // returns an acknowledgement
 type R = hi.POD.Hookin & hi.POD.Acknowledged & { kind: 'Hookin' };
 export default async function addHookin(hookin: hi.Hookin): Promise<R> {
-
   const txOut = await rpcClient.smartGetTxOut(hi.Buffutils.toHex(hookin.txid), hookin.vout);
   if (!txOut) {
     throw 'could not find txout';

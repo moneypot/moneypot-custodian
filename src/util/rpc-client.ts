@@ -36,15 +36,13 @@ export async function getBalance(): Promise<number> {
   return Math.round(b * 1e8);
 }
 
-export async function getRawTransaction(txid: string, blockhash: string|undefined) {
+export async function getRawTransaction(txid: string, blockhash: string | undefined) {
   const transaction = await jsonClient.call('getrawtransaction', { txid, verbose: false, blockhash });
   return transaction as string;
 }
 
-
 // returns as hex...
 export async function getSmartRawTransaction(txid: string, unspentVout?: number) {
-
   let blockhash;
   if (unspentVout !== undefined) {
     blockhash = await getBlockHashOfUtxo(txid, unspentVout);
@@ -53,13 +51,12 @@ export async function getSmartRawTransaction(txid: string, unspentVout?: number)
     }
   }
 
-
   try {
     return getRawTransaction(txid, blockhash);
   } catch (err) {
-    console.log('[rpc] grt didnt work')
+    console.log('[rpc] grt didnt work');
     if (typeof err.message === 'string' && /Use gettransaction for wallet transactions/.test(err.message)) {
-      console.log('[rpc] trying gtc')
+      console.log('[rpc] trying gtc');
       const info = await getTransaction(txid);
       if (!info) {
         return new Error('could not lookup transaction');
@@ -193,12 +190,9 @@ export async function importPrivateKey(privkey: string) {
 }
 
 export async function importPrunedFunds(transactionId: Uint8Array, vout: number) {
-
-
   const txid = hi.Buffutils.toHex(transactionId);
 
-  console.log('trying to import: ', txid, vout)
-
+  console.log('trying to import: ', txid, vout);
 
   const rawtransaction = await getSmartRawTransaction(txid, vout);
   if (rawtransaction instanceof Error) {
@@ -208,7 +202,6 @@ export async function importPrunedFunds(transactionId: Uint8Array, vout: number)
     }
     throw rawtransaction;
   }
-
 
   let txoutproof;
   try {
@@ -401,13 +394,12 @@ export async function getBlockHash(height: number) {
 }
 
 export async function getBlock(blockhash: string) {
-
   const res = await jsonClient.call('getblock', { blockhash });
 
   return {
     hash: res.hash as string,
     confirmations: res.confirmations as number,
-    height: res.height as number
+    height: res.height as number,
   };
 }
 
@@ -421,7 +413,6 @@ async function getBlockHashOfUtxo(txid: string, vout: number): Promise<string | 
     return undefined;
   }
 
-
   const block = await getBlock(info.bestBlock);
   if (block.confirmations < 0) {
     console.warn('[warning] best block was orphaned, retrying...');
@@ -431,10 +422,6 @@ async function getBlockHashOfUtxo(txid: string, vout: number): Promise<string | 
   const newHeight = block.height - info.confirmations + 1;
   return getBlockHash(newHeight);
 }
-
-
-
-
 
 // export async function createTransaction(to: string, amount: number, feeRate: number): Promise<CreateTransactionResult> {
 //   const inBtc = (amount / 1e8).toFixed(8);

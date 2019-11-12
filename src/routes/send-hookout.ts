@@ -134,9 +134,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
           (async () => {
             try {
               await rpcClient.sendRawTransaction(sendTransaction.hex);
-              await pool.query(`UPDATE bitcoin_transactions SET status = 'SENT' WHERE txid = $1`, [
-                txid,
-              ]);
+              await pool.query(`UPDATE bitcoin_transactions SET status = 'SENT' WHERE txid = $1`, [txid]);
             } catch (err) {
               console.error(
                 '[INTERNAL_ERROR] [ACTION_REQUIRED] might not be able to have sent transaction: ',

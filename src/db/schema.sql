@@ -10,7 +10,9 @@ CREATE TABLE claimables(
 );
 CREATE UNIQUE INDEX claimables_hash_idx ON claimables((claimable->>'hash'));
 CREATE INDEX claimables_kind_idx ON claimables((claimable->>'kind'));
+CREATE INDEX claimable_claimant_idx ON claimables((claimable->>'claimant'));
 CREATE INDEX claimables_invoice_payment_request_idx ON claimables((claimable->>'paymentRequest')) WHERE ((claimable->>'kind'='LightningInvoice'));
+
 
 ALTER TABLE claimables ADD CONSTRAINT claimable_hash_check CHECK (jsonb_typeof(claimable->'hash') IS NOT DISTINCT FROM 'string');
 ALTER TABLE claimables ADD CONSTRAINT claimable_kind_check CHECK (jsonb_typeof(claimable->'kind') IS NOT DISTINCT FROM 'string');
