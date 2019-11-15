@@ -14,5 +14,5 @@ export default async function getClaimableByInputOwner(url: string) {
     return null;
   }
 
-  return rows[0]['transfer'] as hi.POD.Claimable & hi.POD.Acknowledged;
+  return rows[0]['claimable'] as hi.POD.Claimable & hi.POD.Acknowledged;
 }

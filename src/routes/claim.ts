@@ -48,7 +48,7 @@ export default async function claim(body: any) {
 
     let toClaim = hi.computeClaimableRemaining(claimable, statuses);
     if (toClaim === 0 || toClaim !== claimRequest.amount()) {
-      console.log('Trying to claim: ', claimRequest.amount, ' but should be claiming: ', toClaim);
+      console.log('Trying to claim: ', claimRequest.amount(), ' but should be claiming: ', toClaim);
       throw 'WRONG_CLAIM_AMOUNT';
     }
 
