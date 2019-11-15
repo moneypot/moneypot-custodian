@@ -30,7 +30,7 @@ export async function insertTransfer(transfer: hi.LightningPayment | hi.Hookout 
       try {
         res = await client.query(`INSERT INTO transfer_inputs(owner, transfer_hash) VALUES ($1, $2)`, [
           owner,
-          transferHash,
+          transferHash.toPOD(),
         ]);
       } catch (err) {
         if (err.code === '23505' && err.constraint === 'transfer_inputs_pkey') {

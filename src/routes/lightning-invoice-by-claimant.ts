@@ -10,7 +10,7 @@ export default async function lightningInvoiceByClaimant(url: string) {
     throw 'INVALID_CLAIMANT';
   }
 
-  const { rows } = await pool.query(`SELECT claimable FROM claimables WHERE (lightning_invoice->>'claimant') = $1`, [
+  const { rows } = await pool.query(`SELECT claimable FROM claimables WHERE claimable->>'claimant' = $1`, [
     claimantStr,
   ]);
 

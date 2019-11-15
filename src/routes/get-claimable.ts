@@ -2,7 +2,7 @@ import * as hi from 'hookedin-lib';
 import { pool } from '../db/util';
 
 export default async function getClaimable(url: string) {
-  const hash = url.substring('/claimable/'.length);
+  const hash = url.substring('/claimables/'.length);
 
   const h = hi.Hash.fromPOD(hash);
   if (h instanceof Error) {

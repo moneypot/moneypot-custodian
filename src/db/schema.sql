@@ -23,7 +23,7 @@ ALTER TABLE claimables ADD CONSTRAINT claimable_acknowledgement_check CHEC
 -- this transfer_inputs is really just to provide the unique constraint on input owners :P
 CREATE TABLE transfer_inputs(
   owner            text                            PRIMARY KEY,
-  transfer_hash    text        NOT NULL -- REFERENCES claimables((claimable->>'hash'))
+  transfer_hash    text        NOT NULL          --  REFERENCES claimables((claimable->>'hash'))
 );
 CREATE INDEX transfer_inputs_transfer_hash_idx ON transfer_inputs(transfer_hash);
 
