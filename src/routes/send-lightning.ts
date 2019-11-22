@@ -1,5 +1,4 @@
 import * as hi from 'hookedin-lib';
-import * as assert from 'assert';
 
 import * as dbTransfer from '../db/transfer';
 import * as dbStatus from '../db/status';
@@ -9,12 +8,22 @@ import * as lightning from '../lightning';
 import StatusFailed from 'hookedin-lib/dist/status/failed';
 import StatusLightningPaymentSent from 'hookedin-lib/dist/status/lightning-payment-sent';
 import StatusInvoiceSettled from 'hookedin-lib/dist/status/invoice-settled';
+import * as config from '../config';
+
 
 import { pool, withTransaction } from '../db/util';
 
 export default async function sendLightning(payment: hi.LightningPayment) {
   if (payment.fee < 100) {
     throw 'min fee is 100 satoshis..';
+  }
+
+  const decoded = hi.decodeBolt11(payment.paymentRequest);
+  if (decoded instanceof Error) {
+    throw new Error('assertion failed: invalid payment request: ' + decoded);
+  }
+  if (decoded.coinType !== config.network) {
+    throw `invoice was for ${decoded.coinType} but custodian operating on ${config.network}`;
   }
 
   const insertRes = await dbTransfer.insertTransfer(payment);
