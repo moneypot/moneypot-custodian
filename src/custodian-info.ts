@@ -1,4 +1,4 @@
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 
 const currency = process.env.CURRENCY || 'tBTC';
 

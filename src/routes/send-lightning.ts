@@ -1,13 +1,13 @@
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 
 import * as dbTransfer from '../db/transfer';
 import * as dbStatus from '../db/status';
 
 import * as lightning from '../lightning';
 
-import StatusFailed from 'hookedin-lib/dist/status/failed';
-import StatusLightningPaymentSent from 'hookedin-lib/dist/status/lightning-payment-sent';
-import StatusInvoiceSettled from 'hookedin-lib/dist/status/invoice-settled';
+import StatusFailed from 'moneypot-lib/dist/status/failed';
+import StatusLightningPaymentSent from 'moneypot-lib/dist/status/lightning-payment-sent';
+import StatusInvoiceSettled from 'moneypot-lib/dist/status/invoice-settled';
 import * as config from '../config';
 
 

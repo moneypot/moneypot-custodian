@@ -1,5 +1,5 @@
 import assert from 'assert';
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 
 import { pool } from './util';
 import { PoolClient } from 'pg';

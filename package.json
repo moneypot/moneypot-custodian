@@ -1,5 +1,5 @@
 {
-  "name": "captain-hook",
+  "name": "moneypot-custodian",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
@@ -27,7 +27,7 @@
     "@grpc/proto-loader": "^0.5.3",
     "@types/node": "^12.12.11",
     "@types/pg": "^7.11.2",
-    "hookedin-lib": "git+https://github.com/hookedin/hookedin-lib.git",
+    "moneypot-lib": "git+https://github.com/moneypot/moneypot-lib.git",
     "pg": "^7.14.0",
     "typescript": "^3.7.2"
   },

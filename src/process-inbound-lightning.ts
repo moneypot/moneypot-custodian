@@ -1,6 +1,6 @@
 import assert from 'assert';
-import * as hi from 'hookedin-lib';
-import StatusInvoiceSettled from 'hookedin-lib/dist/status/invoice-settled';
+import * as hi from 'moneypot-lib';
+import StatusInvoiceSettled from 'moneypot-lib/dist/status/invoice-settled';
 import * as lightning from './lightning/index';
 import * as db from './db/util';
 import { insertStatus } from './db/status';

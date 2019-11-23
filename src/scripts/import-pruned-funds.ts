@@ -1,5 +1,5 @@
 import assert from 'assert';
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 import * as rpcClient from '../util/rpc-client';
 import { pool } from '../db/util';
 

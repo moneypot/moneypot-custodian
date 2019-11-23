@@ -1,4 +1,4 @@
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 import * as lightning from '../lightning/index';
 
 import * as db from '../db/util';

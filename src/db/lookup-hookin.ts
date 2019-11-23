@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 import { pool } from './util';
 
 export default async function(hash: string): Promise<hi.Hookin | undefined> {

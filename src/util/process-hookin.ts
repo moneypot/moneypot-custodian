@@ -1,10 +1,10 @@
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 import * as rpcClient from '../util/rpc-client';
 
 import { fundingSecretKey } from '../custodian-info';
 
 import { insertStatus } from '../db/status';
-import HookinAccepted from 'hookedin-lib/dist/status/hookin-accepted';
+import HookinAccepted from 'moneypot-lib/dist/status/hookin-accepted';
 
 import BlockWatcher from './block-watcher';
 

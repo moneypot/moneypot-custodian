@@ -1,6 +1,6 @@
-import * as hi from 'hookedin-lib';
-import StatusBitcoinTransactionSent from 'hookedin-lib/dist/status/bitcoin-transaction-sent';
-import StatusFailed from 'hookedin-lib/dist/status/failed';
+import * as hi from 'moneypot-lib';
+import StatusBitcoinTransactionSent from 'moneypot-lib/dist/status/bitcoin-transaction-sent';
+import StatusFailed from 'moneypot-lib/dist/status/failed';
 
 import * as dbTransfer from '../db/transfer';
 import * as dbStatus from '../db/status';

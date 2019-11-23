@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 
 import args from './args';
 import Mutex from '../mutex';

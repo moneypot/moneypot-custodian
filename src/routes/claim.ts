@@ -1,5 +1,5 @@
-import * as hi from 'hookedin-lib';
-import StatusClaimed from 'hookedin-lib/dist/status/claimed';
+import * as hi from 'moneypot-lib';
+import StatusClaimed from 'moneypot-lib/dist/status/claimed';
 
 import * as nonceLookup from '../util/nonces';
 import { blindingSecretKeys } from '../custodian-info';

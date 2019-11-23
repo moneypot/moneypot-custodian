@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 
 // TODO: store nocnces in db..
 

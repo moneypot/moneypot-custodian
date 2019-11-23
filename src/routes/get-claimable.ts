@@ -1,4 +1,4 @@
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 import { pool } from '../db/util';
 
 export default async function getClaimable(url: string) {

@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 
 import sendFeeBump from './send-feebump';
 import sendHookout from './send-hookout';

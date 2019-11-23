@@ -2,7 +2,7 @@ import assert from 'assert';
 
 import pg from 'pg';
 
-import * as hi from 'hookedin-lib';
+import * as hi from 'moneypot-lib';
 import { withTransaction, pool } from './util';
 import { fundingSecretKey, ackSecretKey } from '../custodian-info';
 
