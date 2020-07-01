@@ -28,7 +28,7 @@ export interface Selection {
 export function req(p: Problem): Promise<Selection> {
   return new Promise((resolve, reject) => {
     const options = {
-      hostname: 'freeapi.coinsayer.com',
+      hostname: 'coinsayer-xcwataibwq-ez.a.run.app',
       path: '/v1/solve-problem',
       method: 'POST',
       headers: {
