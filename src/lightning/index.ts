@@ -127,7 +127,6 @@ const lightningSendPayment = promisify(
     lightning.sendPaymentSync(arg, cb)
 );
 
-
 export async function sendPayment(payment: hi.LightningPayment): Promise<SendPaymentRes> {
   return await lightningSendPayment({
     amt: payment.amount,

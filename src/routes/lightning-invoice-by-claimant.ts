@@ -14,5 +14,5 @@ export default async function lightningInvoiceByClaimant(url: string) {
     claimantStr,
   ]);
 
-  return rows.map(row => row.claimable as hi.POD.LightningInvoice & hi.POD.Acknowledged)
+  return rows.map(row => row.claimable as hi.POD.LightningInvoice & hi.POD.Acknowledged);
 }

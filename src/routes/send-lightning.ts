@@ -10,7 +10,6 @@ import StatusLightningPaymentSent from 'moneypot-lib/dist/status/lightning-payme
 import StatusInvoiceSettled from 'moneypot-lib/dist/status/invoice-settled';
 import * as config from '../config';
 
-
 import { pool, withTransaction } from '../db/util';
 
 export default async function sendLightning(payment: hi.LightningPayment) {
