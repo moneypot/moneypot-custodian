@@ -43,6 +43,19 @@ export function constTime<T>(debugName: string = 'func') {
           reject(new Error('const timed function: ' + debugName + ' cant return undefined'));
           return;
         }
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+
+        const newFixedTime = Math.max(duration, fixedTime);
+
+        if (newFixedTime > fixedTime) {
+          console.log(
+            `constTime'd function ${debugName} taking too long, so bumping maxTime from ${fixedTime} to ${newFixedTime}`
+          );
+        }
+
+        fixedTime = newFixedTime;
+
         result = r;
       }, reject);
 
@@ -58,18 +71,43 @@ export function constTime<T>(debugName: string = 'func') {
           reject(new Error('const time function never '));
           return;
         }
-
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        const newFixedTime = Math.max(duration + 1, fixedTime + 1);
-        console.log(
-          `constTime'd function ${debugName} taking too long, so bumping maxTime from ${fixedTime} to ${newFixedTime}`
-        );
-        fixedTime = newFixedTime;
         sleep(2 ** retry).then(afterSleep);
       }
 
       sleep(fixedTime).then(afterSleep);
+    });
+  };
+}
+
+export function cachedData<T>(debugName: string = 'func', ms: number) {
+  let date: number | undefined;
+  let data: T | undefined;
+  return (f: () => Promise<T>): Promise<T> => {
+    return new Promise((resolve, reject) => {
+      if (date !== undefined) {
+        if (date + ms > Date.now()) {
+          if (data) {
+            resolve(data);
+            return;
+          }
+        } else if (date + ms <= Date.now()) {
+          date = undefined;
+        }
+      }
+      f().then(r => {
+        if (r === undefined) {
+          reject(new Error('cached func: ' + debugName + ' cant return undefined'));
+          return;
+        }
+        data = r;
+        if (date === undefined) {
+          date = Date.now();
+        }
+        if (data !== undefined) {
+          resolve(r);
+          return;
+        }
+      }, reject);
     });
   };
 }
