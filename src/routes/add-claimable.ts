@@ -13,14 +13,15 @@ export default async function addClaimable(body: any): Promise<hi.POD.Claimable 
     console.warn('could not parse claimable, got: ', claimable);
     throw 'could not parse claimable';
   }
-
   // quick precheck
-  const searchRes = await pool.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1`, [
+  const searchRes = await pool.query(`SELECT claimable, created FROM claimables WHERE claimable->>'hash' = $1`, [
     claimable.hash().toPOD(),
   ]);
   if (searchRes.rows.length !== 0) {
     assert.equal(searchRes.rows.length, 1);
-    return searchRes.rows[0].claimable as hi.POD.Claimable & hi.POD.Acknowledged;
+    let c = searchRes.rows[0].claimable as hi.POD.Claimable & hi.POD.Acknowledged;
+    c.initCreated = Math.round(searchRes.rows[0].created / 60000) * 60000; // sanitize creation time to preven time leak
+    return c;
   }
 
   if (claimable instanceof hi.LightningInvoice) {

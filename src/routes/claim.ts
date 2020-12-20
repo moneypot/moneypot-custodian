@@ -75,7 +75,6 @@ export default async function claim(body: any) {
         secretNonce,
         coinReq.blindedOwner
       );
-
       blindedExistenceProofs.push(blindedExistenceProof);
     }
 

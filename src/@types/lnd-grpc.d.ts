@@ -21,6 +21,8 @@ declare module 'lnd-grpc' {
 
   class Invoices {}
 
+  class Router {}
+
   export default class LndGrpc extends EventEmitter {
     constructor(opts: { host: string; cert: string; macaroon: string });
 
@@ -29,6 +31,12 @@ declare module 'lnd-grpc' {
 
     state: 'active' | 'locked';
 
-    services: { WalletUnlocker: WalletUnlocker; Lightning: Lightning; Autopilot: Autopilot; Invoices: Invoices };
+    services: {
+      WalletUnlocker: WalletUnlocker;
+      Lightning: Lightning;
+      Autopilot: Autopilot;
+      Invoices: Invoices;
+      Router: Router;
+    };
   }
 }

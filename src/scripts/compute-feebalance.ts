@@ -11,7 +11,6 @@ let Spent: number[] = [];
 
 async function run() {
   console.log('running query');
-  // get it typed..?
   const getClaimables = await pool.query(`SELECT claimable FROM claimables`);
   for (const c of getClaimables.rows) {
     const b: hi.POD.Claimable = c.claimable;
@@ -51,7 +50,6 @@ async function run() {
         const a = await rpcClient.getTransaction(b.txid);
         if (a != undefined) {
           if (a.fee != undefined) {
-            console.log(a.fee, Math.round(a.fee * 1e8));
             Spent.push(Math.round(a.fee * 1e8));
           }
         }

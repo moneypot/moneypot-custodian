@@ -1,6 +1,6 @@
 import { promisify } from 'util';
 
-import * as grpc from '@grpc/grpc-js';
+import * as grpc from 'grpc';
 import * as protoLoader from '@grpc/proto-loader';
 
 import * as hi from 'moneypot-lib';
@@ -8,9 +8,9 @@ import * as hi from 'moneypot-lib';
 import args from './args';
 import Mutex from '../mutex';
 
-import { SendPaymentRes, LndInvoice } from './types';
+import { SendPaymentRes, LndInvoice, GetInfo, LNDNodeInfo, channels, LightningPayments } from './types';
 
-const packageDefinition = protoLoader.loadSync(['lnd-rpc.proto', 'lnd-invoices.proto'], {
+const packageDefinition = protoLoader.loadSync(['lnd-rpc.proto', 'lnd-invoices.proto', 'lnd-router.proto'], {
   keepCase: true,
   longs: Number,
   enums: String,
@@ -21,6 +21,7 @@ const packageDefinition = protoLoader.loadSync(['lnd-rpc.proto', 'lnd-invoices.p
 const packageDef = grpc.loadPackageDefinition(packageDefinition);
 const lnrpc = packageDef.lnrpc as any;
 const invoicesrpc = packageDef.invoicesrpc as any;
+// const routerrpc = packageDef.routerrpc as any;
 
 process.env.GRPC_SSL_CIPHER_SUITES = 'HIGH+ECDSA';
 
@@ -36,6 +37,7 @@ let creds = grpc.credentials.combineChannelCredentials(sslCreds, macaroonCreds);
 
 let lightning = new lnrpc.Lightning(args.host, creds);
 let invoices = new invoicesrpc.Invoices(args.host, creds);
+// let router = new routerrpc.Router(args.host, creds);
 
 const notifMutex = new Mutex();
 
@@ -123,8 +125,10 @@ export async function lookupInvoicebyPaymentRequest(paymentRequest: string) {
 }
 
 const lightningSendPayment = promisify(
-  (arg: { amt: number; payment_request: string; fee_limit: { fixed: number } }, cb: (err: Error, x: any) => any) =>
-    lightning.sendPaymentSync(arg, cb)
+  (
+    arg: { amt: number; payment_request: string; fee_limit: { fixed: number }; max_parts?: number },
+    cb: (err: Error, x: any) => any
+  ) => lightning.sendPaymentSync(arg, cb)
 );
 
 export async function sendPayment(payment: hi.LightningPayment): Promise<SendPaymentRes> {
@@ -132,6 +136,7 @@ export async function sendPayment(payment: hi.LightningPayment): Promise<SendPay
     amt: payment.amount,
     payment_request: payment.paymentRequest,
     fee_limit: { fixed: payment.fee },
+    max_parts: 21, // todo
   });
 }
 
@@ -157,4 +162,30 @@ export async function cancelInvoice(paymentHash: string): Promise<undefined | Er
 
 export async function cancelInvoiceByPaymentRequest(paymentRequest: string) {
   return cancelInvoice(paymentRequestToRHash(paymentRequest));
+}
+
+const lightninginfo = promisify((cb: (err: Error, x: GetInfo) => any) => lightning.getInfo({}, cb));
+const listPayments = promisify((cb: (err: Error, x: LightningPayments) => any) => lightning.listPayments({}, cb));
+
+export async function getListedPayments(): Promise<LightningPayments> {
+  return await listPayments();
+}
+
+const lightningNodeInfo = promisify((arg: { pub_key: string }, cb: (err: Error, x: LNDNodeInfo) => any) =>
+  lightning.GetNodeInfo(arg, cb)
+);
+
+let key: undefined | string = undefined;
+
+export async function getLightningNodeInfo(): Promise<LNDNodeInfo> {
+  if (!key) {
+    key = (await lightninginfo()).identity_pubkey;
+  }
+  return await lightningNodeInfo({ pub_key: key });
+}
+
+const lightninglistchannels = promisify((cb: (err: Error, x: channels) => any) => lightning.ListChannels({}, cb));
+
+export async function getListedChannels(): Promise<channels> {
+  return await lightninglistchannels();
 }

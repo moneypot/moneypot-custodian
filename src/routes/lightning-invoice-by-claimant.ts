@@ -10,9 +10,16 @@ export default async function lightningInvoiceByClaimant(url: string) {
     throw 'INVALID_CLAIMANT';
   }
 
-  const { rows } = await pool.query(`SELECT claimable FROM claimables WHERE claimable->>'claimant' = $1`, [
+  const { rows } = await pool.query(`SELECT claimable, created FROM claimables WHERE claimable->>'claimant' = $1`, [
     claimantStr,
   ]);
 
-  return rows.map(row => row.claimable as hi.POD.LightningInvoice & hi.POD.Acknowledged);
+  if (rows.length === 0) {
+    return null;
+  }
+
+  let i = rows[0].claimable as hi.POD.Claimable & hi.POD.Acknowledged;
+
+  i.initCreated = Math.round(rows[0].created / 60000) * 60000;
+  return i;
 }

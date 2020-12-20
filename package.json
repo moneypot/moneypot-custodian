@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index",
-    "finalize": "ts-node src/scripts/finalize-hookins.ts",
+    "finalize-hookins": "ts-node src/scripts/finalize-hookins.ts",
+    "finalize-lightning": "ts-node src/scripts/finalize-lightning.ts",
+    "compute-feebalance": "ts-node src/scripts/compute-feebalance.ts",
+    "consolidate-funds": "ts-node src/scripts/consolidate-funds.ts",
     "start": "node dist/index.js",
     "watch-node": "nodemon dist/index.js",
     "watch-ts": "tsc -w",
@@ -18,17 +21,17 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "nodemon": "^1.19.4",
-    "prettier": "^1.19.1",
-    "ts-node": "^8.5.2"
+    "nodemon": "^2.0.6",
+    "prettier": "^2.2.1",
+    "ts-node": "^9.1.1"
   },
   "dependencies": {
-    "@grpc/grpc-js": "^0.5.4",
-    "@grpc/proto-loader": "^0.5.3",
-    "@types/node": "^12.12.11",
-    "@types/pg": "^7.11.2",
+    "grpc": "^1.24.4",
+    "@grpc/proto-loader": "^0.5.5",
+    "@types/node": "^14.14.14",
+    "@types/pg": "^7.14.7",
     "moneypot-lib": "git+https://github.com/moneypot/moneypot-lib.git",
-    "pg": "^7.14.0",
+    "pg": "^8.5.1",
     "typescript": "^3.7.2"
   },
   "engines": {

@@ -5,16 +5,32 @@ import StatusFailed from 'moneypot-lib/dist/status/failed';
 import { withTransaction, pool } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
+import { addressType } from '../util/rpc-client';
 import * as dbStatus from '../db/status';
 import * as config from '../config';
 
 import calcFeeSchedule from './fee-schedule';
+import {
+  legacyTransactionWeight,
+  wrappedTransactionWeight,
+  templateTransactionWeight,
+  legacyOutput,
+  segwitOutput,
+  wrappedOutput,
+  segmultiOutput,
+  segmultiTransactionWeight,
+} from '.././config';
 
 export default async function sendHookout(hookout: hi.Hookout) {
   if (!hookout.isAuthorized()) {
     throw 'transfer was not authorized';
   }
 
+  // this is client rules... :/ something like 148 (nested segwit, biggest input possible) + 43 (depends on client, but lets assume most costly)
+  // Math.ceil((90.75 + 43) * 3)
+  if (hookout.amount < 547) {
+    throw 'trying to dust up the network. Cannot allow...';
+  }
   const addressInfo = hi.decodeBitcoinAddress(hookout.bitcoinAddress);
   if (addressInfo instanceof Error) {
     throw 'trying to send to invalid bitcoin address';
@@ -24,14 +40,46 @@ export default async function sendHookout(hookout: hi.Hookout) {
   }
 
   const feeSchedule = await calcFeeSchedule();
+  if (feeSchedule instanceof Error) {
+    if (typeof feeSchedule.message === 'string' && /BITCOIN_CORE_NOT_RESPONDING/.test(feeSchedule.message)) {
+      throw 'bitcoin core is not responding';
+    }
+    throw 'Unspecified Error! Try again';
+  }
 
   let expectedFee;
   switch (hookout.priority) {
     case 'IMMEDIATE':
-      expectedFee = feeSchedule.immediate;
+      switch (addressInfo.kind) {
+        case 'p2pkh':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * legacyTransactionWeight);
+          break;
+        case 'p2sh':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * wrappedTransactionWeight);
+          break;
+        case 'p2wsh':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * segmultiTransactionWeight);
+          break;
+        case 'p2wpkh':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * templateTransactionWeight);
+          break;
+      }
       break;
     case 'BATCH':
-      expectedFee = feeSchedule.batch;
+      switch (addressInfo.kind) {
+        case 'p2pkh':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * legacyOutput);
+          break;
+        case 'p2sh':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * wrappedOutput);
+          break;
+        case 'p2wsh':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * segmultiOutput);
+          break;
+        default:
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * segwitOutput);
+          break;
+      }
       break;
     case 'FREE':
       if (hookout.amount < 0.01e8) {
@@ -58,7 +106,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
   const hookoutHash = hookout.hash();
 
   const insertRes = await dbTransfer.insertTransfer(hookout);
-  if (insertRes === 'DOUBLE_SPEND') {
+  if (insertRes === 'NOT_AUTHORIZED_PROPERLY' || insertRes === 'DOUBLE_SPEND' || insertRes === 'CHEATING_ATTEMPT') {
     throw insertRes;
   }
   const [ackClaimable, isNew] = insertRes;
@@ -66,17 +114,19 @@ export default async function sendHookout(hookout: hi.Hookout) {
   if (isNew) {
     // actually send...
     // If we're going to send right now, lets get some others...
-    if (hookout.priority === 'IMMEDIATE' || hookout.priority === 'FREE') {
+    if (hookout.priority === 'IMMEDIATE' || hookout.priority === 'CUSTOM' || hookout.priority === 'FREE') {
       await withTransaction(async dbClient => {
         let otherHookouts: hi.Hookout[] = [];
-
+        // Batched can never fail, (free can fail only if the custodian crashes and it is the initiator...?)
         const queryRes = await dbClient.query(
           `SELECT claimable FROM claimables WHERE claimable->>'kind' = 'Hookout'
-        AND claimable->>'priority' = $1
-        AND (claimable->>'hash') NOT IN (SELECT (status->>'hash') FROM statuses)
-        FOR UPDATE
+          AND claimable->>'priority' = $1 AND (claimable->>'hash') != $2 AND (claimable->>'hash') NOT IN (SELECT (status->>'claimableHash') FROM statuses WHERE (status->>'kind' = 'BitcoinTransactionSent' OR status->>'kind' = 'Failed')) 
+           FOR UPDATE
         `,
-          [hookout.priority === 'IMMEDIATE' ? 'BATCH' : 'FREE']
+          [
+            hookout.priority === 'IMMEDIATE' ? 'BATCH' : hookout.priority === 'FREE' ? 'FREE' : undefined,
+            hookout.toPOD().hash,
+          ]
         );
 
         for (const { claimable } of queryRes.rows) {
@@ -84,20 +134,52 @@ export default async function sendHookout(hookout: hi.Hookout) {
           if (h instanceof Error) {
             throw h;
           }
-
           otherHookouts.push(h);
         }
+        // TODO: query stuck custom/immediate tx in case of uncatched errors?!
+        const calcCustom = () => { 
+          switch(addressType(hookout.bitcoinAddress)) { 
+            case 'bech32': 
+              return hookout.fee / config.templateTransactionWeight;
+            case 'legacy':
+              return hookout.fee / config.legacyTransactionWeight;
+            case 'p2sh': 
+              return hookout.fee / config.wrappedTransactionWeight;
+            case 'p2wsh': 
+              return hookout.fee / config.segmultiTransactionWeight;
 
-        // If not a batch...
+          }
+        }
+
+
         if (hookout.priority !== 'BATCH') {
           const noChange = hookout.priority === 'FREE';
-
-          let sendTransaction = await rpcClient.createSmartTransaction(
-            hookout,
-            otherHookouts,
-            feeSchedule.immediateFeeRate,
-            noChange
-          );
+          const sendTransaction = config.hasCoinsayer
+            ? await rpcClient.createSmartTransaction(
+                hookout,
+                hookout.priority === 'IMMEDIATE' || hookout.priority === 'FREE' ? otherHookouts : [], // we don't really want to
+                hookout.priority === 'IMMEDIATE'
+                  ? feeSchedule.immediateFeeRate
+                  : hookout.priority === 'CUSTOM'
+                  ? calcCustom()
+                  : 0.25, // 0 = free transaction,
+                noChange,
+                hookout.rbf
+              )
+            : await rpcClient.createNormalTransaction(
+                hookout,
+                hookout.priority === 'IMMEDIATE' || hookout.priority === 'FREE' ? otherHookouts : [],
+                hookout.priority === 'IMMEDIATE'
+                  ? feeSchedule.immediateFeeRate
+                  : hookout.priority === 'CUSTOM'
+                  ? calcCustom()
+                  : 0.25, // 0 = free transaction,
+                noChange,
+                hookout.rbf
+              );
+          if (sendTransaction === 'FREE_TRANSACTION_TOO_EXPENSIVE') {
+            return ackClaimable.toPOD();
+          }
           if (sendTransaction instanceof Error) {
             console.warn(
               'could not create the transaction, to: ',
@@ -110,8 +192,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
               'got error: ',
               sendTransaction
             );
-
-            const status = new StatusFailed(hookoutHash, sendTransaction.message, hookout.fee);
+            const status = new StatusFailed(hookoutHash, sendTransaction.message, hookout.fee + (hookout.amount - 100));
             await dbStatus.insertStatus(status, dbClient);
             return;
           }
@@ -119,18 +200,20 @@ export default async function sendHookout(hookout: hi.Hookout) {
 
           await dbClient.query(
             `INSERT INTO bitcoin_transactions(txid, hex, fee, status)
-      VALUES($1, $2, $3, 'SENDING')
-    `,
-            [txid, sendTransaction.hex, sendTransaction.fee]
+        VALUES($1, $2, $3, 'SENDING')
+      `,
+            [txid, sendTransaction.hex, Math.round(sendTransaction.fee)]
           );
 
           // TODO: can be flattened into a single query
-          for (const hookout of sendTransaction.allOutputs) {
-            const status = new StatusBitcoinTransactionSent(hookout.hash(), sendTransaction.txid);
+          for (const h of sendTransaction.allOutputs) {
+            const status = new StatusBitcoinTransactionSent(h.hash(), sendTransaction.txid);
             await dbStatus.insertStatus(status, dbClient);
           }
 
           // actually send in the background
+
+          // TODO: Additional check against block explorer to see if tx is actually broadcasted.
           (async () => {
             try {
               await rpcClient.sendRawTransaction(sendTransaction.hex);

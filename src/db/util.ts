@@ -1,4 +1,5 @@
 import { Pool, PoolClient, types } from 'pg';
+import http from 'http';
 types.setTypeParser(20, function(val) {
   return parseInt(val);
 });
@@ -34,33 +35,38 @@ export function constTime<T>(debugName: string = 'func') {
   let fixedTime = 1; // how long to sleep, auto gets bumped as required;
 
   return (f: () => Promise<T>): Promise<T> => {
-    return new Promise((resolve, reject) => {
-      let result: T | undefined;
+    return new Promise(async (resolve, reject) => {
+      let result: T | undefined | Error;
       const startTime = Date.now();
 
-      f().then(r => {
-        if (r === undefined) {
-          reject(new Error('const timed function: ' + debugName + ' cant return undefined'));
-          return;
-        }
-        const endTime = Date.now();
-        const duration = endTime - startTime;
+      try {
+        result = await f();
+      } catch (e) {
+        result = new Error(e);
+      }
+      // hmmm. can this leak anything?
+      if (result === undefined) {
+        reject(new Error('const timed function: ' + debugName + ' cant return undefined'));
+        return;
+      }
+      const endTime = Date.now();
+      const duration = endTime - startTime;
 
-        const newFixedTime = Math.max(duration, fixedTime);
+      const newFixedTime = Math.max(duration, fixedTime);
 
-        if (newFixedTime > fixedTime) {
-          console.log(
-            `constTime'd function ${debugName} taking too long, so bumping maxTime from ${fixedTime} to ${newFixedTime}`
-          );
-        }
-
-        fixedTime = newFixedTime;
-
-        result = r;
-      }, reject);
+      if (newFixedTime > fixedTime) {
+        console.log(
+          `constTime'd function ${debugName} taking too long, so bumping maxTime from ${fixedTime} to ${newFixedTime}`
+        );
+      }
+      fixedTime = newFixedTime;
 
       let retry = -1;
       function afterSleep() {
+        if (result instanceof Error) {
+          reject(result.message);
+          return;
+        }
         if (result !== undefined) {
           resolve(result);
           return;
@@ -104,6 +110,60 @@ export function cachedData<T>(debugName: string = 'func', ms: number) {
           date = Date.now();
         }
         if (data !== undefined) {
+          resolve(r);
+          return;
+        }
+      }, reject);
+    });
+  };
+}
+
+export function DataLimiter<T>(debugName: string = 'func', maxCount: number, timeBetween: number) {
+  let requests: { [key: string]: number }[] = [];
+
+  return (b: http.IncomingMessage, f: () => Promise<T>): Promise<T> => {
+    return new Promise((resolve, reject) => {
+      const ip = b.headers['x-forwarded-for'];
+      let count = 0;
+      let isAllowed = false;
+      const p = requests.reverse();
+      for (const l of p) {
+        for (const k in l) {
+          if (k === (ip instanceof Array ? ip[0] : typeof ip === 'string' ? ip : '127.0.0.1')) {
+            count++;
+          }
+          if (l[k] < Date.now() - timeBetween) {
+            p.splice(p.indexOf(l), p.length - 1); // time based.
+          }
+        }
+      }
+      requests = p.reverse();
+
+      if (count >= maxCount) {
+        isAllowed = false;
+      } else {
+        if (typeof ip === 'string') {
+          requests.push({ [ip]: Date.now() });
+        } else if (ip instanceof Array) {
+          // (this bad?)
+          const p = ip[0];
+          requests.push({ [p]: Date.now() });
+        }
+        isAllowed = true;
+      }
+      if (!isAllowed) {
+        reject(new Error('limiter func: ' + debugName + ' has been triggered on ' + maxCount + ' '));
+        return;
+      }
+
+      f().then(r => {
+        if (r === undefined) {
+          reject(
+            new Error('Data limited function (nested in a const time func): ' + debugName + ' cant return undefined')
+          );
+          return;
+        }
+        if (r !== undefined) {
           resolve(r);
           return;
         }

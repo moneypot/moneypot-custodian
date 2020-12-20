@@ -25,10 +25,10 @@ export interface Selection {
   miningSacrifice: number;
 }
 
-export function req(p: Problem): Promise<Selection> {
+export function req(p: Problem): Promise<Selection | Error> {
   return new Promise((resolve, reject) => {
     const options = {
-      hostname: 'coinsayer-xcwataibwq-ez.a.run.app',
+      hostname: 'coinsayer-xcwataibwq-ez.a.run.app', // contact riperk for access. this link probably won't work forever
       path: '/v1/solve-problem',
       method: 'POST',
       headers: {
@@ -58,7 +58,6 @@ export function req(p: Problem): Promise<Selection> {
           reject(body);
           return;
         }
-
         resolve(obj);
       });
     });

@@ -1,11 +1,11 @@
 import * as hi from 'moneypot-lib';
 import * as rpcClient from '../util/rpc-client';
-import * as assert from 'assert';
 
 import ci, { fundingSecretKey, ackSecretKey } from '../custodian-info';
 import processHookin from '../util/process-hookin';
 
 import { pool } from '../db/util';
+import * as config from '../config';
 
 // body should be { hookin, claimRequest }
 // returns an acknowledgement
@@ -16,10 +16,15 @@ export default async function addHookin(hookin: hi.Hookin): Promise<R> {
     throw 'could not find txout';
   }
 
-  const expectedAddress = ci.fundingKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(true);
+  const expectedAddress = ci.fundingKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(config.bNetwork);
+  const expectedNestedAddress = ci.fundingKey
+    .tweak(hookin.getTweak().toPublicKey())
+    .toNestedBitcoinAddress(config.bNetwork);
   if (expectedAddress !== txOut.address) {
-    console.warn('Expected address: ', expectedAddress, ' got address: ', txOut.address);
-    throw 'INVALID_HOOKIN';
+    if (expectedNestedAddress !== txOut.address) {
+      console.warn('Expected address: ', expectedAddress, expectedNestedAddress, ' got address: ', txOut.address);
+      throw 'INVALID_HOOKIN';
+    }
   }
 
   const ackdClaimable = hi.Acknowledged.acknowledge(hookin, ackSecretKey);

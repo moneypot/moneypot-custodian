@@ -4,15 +4,37 @@ import pg from 'pg';
 
 import * as hi from 'moneypot-lib';
 import { withTransaction, pool } from './util';
-import { fundingSecretKey, ackSecretKey } from '../custodian-info';
+import custodianInfo, { fundingSecretKey, ackSecretKey } from '../custodian-info';
 
 // Returns 'DOUBLE_SPEND' on error. On success returns the claimable and if it's new or not
-type InsertRes = [hi.Acknowledged.Claimable, boolean] | 'DOUBLE_SPEND';
+type InsertRes =
+  | [hi.Acknowledged.Claimable, boolean]
+  | ('DOUBLE_SPEND' | 'NOT_AUTHORIZED_PROPERLY' | 'CHEATING_ATTEMPT');
 
 export async function insertTransfer(transfer: hi.LightningPayment | hi.Hookout | hi.FeeBump): Promise<InsertRes> {
   const transferHash = transfer.hash();
 
   // TODO: use hi.Acknowledged.Transfer type
+
+  // check valid auth (again? how many times have we actually already checked this..?): TODO
+  const isAuthed = transfer.isAuthorized();
+  if (!isAuthed) {
+    return 'NOT_AUTHORIZED_PROPERLY';
+  }
+  for (const coin of transfer.inputs) {
+    const owner: string = coin.owner.toPOD();
+    // verify unblinded signature, else return cheat attempt!
+    const existenceProof: hi.Signature = coin.receipt;
+    const isValid = existenceProof.verify(coin.owner.buffer, custodianInfo.blindCoinKeys[coin.magnitude.n]);
+    if (!isValid) {
+      return 'CHEATING_ATTEMPT'; // actually a cheating attempt!
+    }
+    const isSpend = await pool.query(`SELECT owner from transfer_inputs WHERE owner = $1`, [owner]);
+    if (isSpend.rows.length != 0) {
+      return 'DOUBLE_SPEND'; // Already seen
+    }
+  }
+
   const ackdClaimble: hi.Acknowledged.Claimable = hi.Acknowledged.acknowledge(transfer, ackSecretKey);
 
   return withTransaction(async client => {
@@ -33,6 +55,7 @@ export async function insertTransfer(transfer: hi.LightningPayment | hi.Hookout 
           transferHash.toPOD(),
         ]);
       } catch (err) {
+        // this should never be used.
         if (err.code === '23505' && err.constraint === 'transfer_inputs_pkey') {
           return 'DOUBLE_SPEND';
         }

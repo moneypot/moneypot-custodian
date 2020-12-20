@@ -4,6 +4,7 @@ import * as rpcClient from '../util/rpc-client';
 import assert from 'assert';
 import * as hi from 'moneypot-lib';
 import * as config from '../config';
+import * as db from '../db/util';
 
 interface inputs {
   txid: string;
@@ -12,14 +13,27 @@ interface inputs {
 
 async function run() {
   const unspent = await rpcClient.listUnspent();
-  const compFee = (await rpcClient.getImmediateFeeRate()) * 561; // draw a line somewhere.
+  let compFee = await rpcClient.getImmediateFeeRate();
   const consFee = await rpcClient.getConsolidationFeeRate();
-
+  if (typeof compFee != 'number') {
+    throw 'check if bitcoin core is running';
+  }
+  compFee * 561; // draw a line somewhere.
+  if (typeof consFee != 'number') {
+    throw 'check if bitcoin core is running';
+  }
+  if (unspent instanceof Error) {
+    throw `Is bitcoin core running? ...@consolidate-funds... ${unspent}`;
+  }
+  if (unspent === 'BITCOIN_CORE_NOT_RESPONDING') {
+    throw unspent;
+  }
   let result: rpcClient.Unspent[] = [];
   for (const u of unspent) {
     if (u.amount < compFee) {
-      if (u.amount > consFee * (34 * 4)) {
-        result.push(u); // if the amount is lower than the consolidation fee for a single input, it is useless.
+      if (u.amount > consFee * (90.75 * 4)) {
+        // the cost to consolidate is bigger than the input's value!
+        result.push(u);
       }
     }
   }
@@ -27,46 +41,38 @@ async function run() {
   for (const res of result) {
     inputs.push({ txid: res.txid, vout: res.vout });
   }
+  let amount: number[] = [];
 
-  const calculateAmount = () => {
-    let amount: number[] = [];
+  for (const a of result) {
+    amount.push(a.amount);
+  }
+  const totalA = amount.reduce((a, b) => a + b, 0);
 
-    for (const a of result) {
-      amount.push(a.amount);
+  let weight: number[] = [];
+  for (const r of result) {
+    const type = hi.decodeBitcoinAddress(r.address);
+    if (type instanceof Error) {
+      throw type;
     }
-    return amount.reduce((a, b) => a + b, 0);
-  };
-
-  const calculateweight = () => {
-    // get the output type for each txid.
-    let weight: number[] = [];
-    for (const r of result) {
-      const type = hi.decodeBitcoinAddress(r.address);
-      if (type instanceof Error) {
-        throw type;
-      }
-      switch (type.kind) {
-        case 'p2pkh':
-          break;
-        case 'p2sh':
-          weight.push(config.nestedInput);
-          break;
-        case 'p2wpkh':
-          weight.push(config.segInput);
-          break;
-        case 'p2wsh':
-          break;
-      }
+    switch (type.kind) {
+      case 'p2pkh':
+        break; // not possible
+      case 'p2sh':
+        weight.push(90.75 * 4);
+        break;
+      case 'p2wpkh':
+        weight.push(67.75 * 4);
+        break;
+      case 'p2wsh': // not possible
+        break;
     }
-    weight.push(config.segwitOutput);
-    weight.push(10.5 * 4); // ?
+  }
+  weight.push(31 * 4); // change
+  weight.push(10.5 * 4); // w/e
 
-    return weight.reduce((a, b) => a + b, 0);
-  };
-
+  const totalW = weight.reduce((a, b) => a + b, 0);
   const changeAddress = await rpcClient.getChangeAddress();
-  const outputs = { [changeAddress]: ((calculateAmount() - calculateweight() * consFee) / 1e8).toFixed(8) };
-  // console.log(calculateAmount(), calculateweight(), consFee, outputs)
+  const outputs = { [changeAddress]: ((totalA - Math.round(Math.round(totalW) * consFee)) / 1e8).toFixed(8) };
   let hexstring = await rpcClient.jsonClient.call('createrawtransaction', {
     inputs,
     outputs,
@@ -84,13 +90,18 @@ async function run() {
   let signedhexstring = signRes.hex;
 
   const decodeRes = await rpcClient.decodeRawTransaction(signedhexstring);
-  //   console.log(decodeRes, "decoded tx")
   const txid = hi.Buffutils.fromHex(decodeRes.txid, 32);
   if (txid instanceof Error) {
     throw new Error('expected txid to be a string');
   }
 
-  const z = await rpcClient.sendRawTransaction(signedhexstring); // should probably log this somewhere. TODO? maybe?
+  const z = await rpcClient.sendRawTransaction(signedhexstring);
+  await db.pool.query(
+    `INSERT INTO bitcoin_transactions_manual(transaction)
+VALUES($1)
+`,
+    [decodeRes] // TODO, not sure if this always works
+  );
   console.log(`Transaction has been sent! [txid]:[${z}]`);
 }
 

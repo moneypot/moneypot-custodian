@@ -12,12 +12,14 @@ export default async function getClaimableByInputOwner(url: string) {
   const {
     rows,
   } = await pool.query(
-    `SELECT claimable FROM claimables WHERE claimable->>'hash' = (SELECT transfer_hash FROM transfer_inputs WHERE owner = $1)`,
+    `SELECT claimable, created FROM claimables WHERE claimable->>'hash' = (SELECT transfer_hash FROM transfer_inputs WHERE owner = $1)`,
     [owner]
   );
   if (rows.length === 0) {
     return null;
   }
+  let c = rows[0].claimable as hi.POD.Claimable & hi.POD.Acknowledged;
+  c.initCreated = Math.round(rows[0].created / 60000) * 60000;
 
-  return rows[0]['claimable'] as hi.POD.Claimable & hi.POD.Acknowledged;
+  return c;
 }

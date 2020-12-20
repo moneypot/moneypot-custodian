@@ -21,12 +21,13 @@ export default async function sendLightning(payment: hi.LightningPayment) {
   if (decoded instanceof Error) {
     throw new Error('assertion failed: invalid payment request: ' + decoded);
   }
-  if (decoded.coinType !== config.network) {
+  // mainnet is actually "bitcoin"
+  if (decoded.coinType !== config.lnNetwork) {
     throw `invoice was for ${decoded.coinType} but custodian operating on ${config.network}`;
   }
 
   const insertRes = await dbTransfer.insertTransfer(payment);
-  if (insertRes === 'DOUBLE_SPEND') {
+  if (insertRes === 'NOT_AUTHORIZED_PROPERLY' || insertRes === 'DOUBLE_SPEND' || insertRes === 'CHEATING_ATTEMPT') {
     throw insertRes;
   }
   const [ackClaimable, isNew] = insertRes;
@@ -122,9 +123,9 @@ async function sendPayment(payment: hi.LightningPayment) {
   } else {
     err = internalRes;
   }
-
+  // TODO
   if (err) {
-    const status = new StatusFailed(payment.hash(), err.message, payment.fee);
+    const status = new StatusFailed(payment.hash(), err.message, payment.fee + payment.amount - 100); // 100 is spam fee
     await dbStatus.insertStatus(status);
   }
 }
