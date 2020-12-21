@@ -24,6 +24,12 @@ export default async function genInvoice(body: any) {
     throw 'expected an natural number for amount';
   }
 
+  const res = await db.pool.query(`SELECT claimable FROM claimables WHERE claimable->>'kind'='LightningInvoice' AND claimable->>'claimant' = $1`, [claimant.toPOD()]);
+
+  if (res.rows.length === 1) {
+    throw 'we already have an invoice for this claimant!';
+  }
+
   const invoice = await lightning.addInvoice(claimant, memo, amount);
 
   const ackedInvoice = hi.Acknowledged.acknowledge(invoice, ackSecretKey);
