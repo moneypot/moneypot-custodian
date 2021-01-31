@@ -15,7 +15,9 @@ export default async function addHookin(hookin: hi.Hookin): Promise<R> {
   if (!txOut) {
     throw 'could not find txout';
   }
-
+  if (txOut.amount != hookin.amount) {
+    throw 'hookin cheating attempt';
+  } 
   const expectedAddress = ci.fundingKey.tweak(hookin.getTweak().toPublicKey()).toBitcoinAddress(config.bNetwork);
   const expectedNestedAddress = ci.fundingKey
     .tweak(hookin.getTweak().toPublicKey())
