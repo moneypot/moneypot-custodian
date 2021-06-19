@@ -32,7 +32,8 @@
     "@types/pg": "^7.14.7",
     "moneypot-lib": "git+https://github.com/moneypot/moneypot-lib.git",
     "pg": "^8.5.1",
-    "typescript": "^3.7.2"
+    "typescript": "^3.7.2",
+    "socks-proxy-agent": "^5.0.0"
   },
   "engines": {
     "node": "12.x"

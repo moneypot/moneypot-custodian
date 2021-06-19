@@ -3,6 +3,8 @@ import * as hi from 'moneypot-lib';
 import * as coinsayer from './coinsayer';
 
 import JSONRpcClient from './jsonrpc';
+import { decodeBitcoinAddress } from 'moneypot-lib';
+import * as config from '../config';
 
 //let jsonClient = new JSONRpcClient('127.0.0.1', 18332, 'testnetdev', 'l5JwLwtAXnaF');
 // ip is not process.env'd. change manually
@@ -384,23 +386,34 @@ export async function bumpFee(txid: string, confTarget: number): Promise<BumpFee
   return res;
 }
 
-export function addressType(address: string) {
-  if (address.startsWith('1') || address.startsWith('m') || address.startsWith('n')) {
-    return 'legacy';
+export function addressType(address: string) { 
+  const x = decodeBitcoinAddress(address)
+  if (x instanceof Error) { 
+    throw 'invalid address'
   }
-  if (address.startsWith('2') || address.startsWith('3')) {
-    return 'p2sh';
-  }
-  if (address.startsWith('tb1') || address.startsWith('bc1')) {
-    // lazy
-    if (address.length > 42) {
-      return 'p2wsh';
-    }
-    return 'bech32';
-  }
-
-  throw new Error('unrecognized address: ' + address);
+  return x.kind
 }
+
+
+
+// this no longer is sufficient due to p2tr using v1 
+// export function addressType(address: string) {
+//   if (address.startsWith('1') || address.startsWith('m') || address.startsWith('n')) {
+//     return 'legacy';
+//   }
+//   if (address.startsWith('2') || address.startsWith('3')) {
+//     return 'p2sh';
+//   }
+//   if (address.startsWith('tb1') || address.startsWith('bc1')) {
+//     // lazy
+//     if (address.length > 42) {
+//       return 'p2wsh';
+//     }
+//     return 'bech32';
+//   }
+
+//   throw new Error('unrecognized address: ' + address);
+// }
 
 export type CreateTransactionResult = {
   txid: Uint8Array;
@@ -440,10 +453,11 @@ export async function createSmartTransaction(
     feeRate = Math.max(0.25, consolidationFeeRate * 0.9); // we can't send less than 1 sat/vbyte
   }
 
-  const multisig = 128;
-  const segwitmultiWeight = 43 * 4;
-  const nativeWeight = 124;
-  const legacyWeight = 136;
+ // const multisig = 128;
+ // const nativeWeight = 124;
+ // const legacyWeight = 136;
+
+ // these are not exactly right
   const nativeInputWeight = 67.75 * 4;
   const wrappedSegwitWeight = 90.75 * 4; // TODO, this doesn't match?
 
@@ -452,7 +466,7 @@ export async function createSmartTransaction(
     consolidationFeeRate,
     // 10.5 ?
     fixedWeight: 42,
-    changeWeight: noChange ? 1e6 : nativeWeight, // make it stupid to pick change..
+    changeWeight: noChange ? 1e6 : config.p2wpkh, // make it stupid to pick change..
     changeSpendWeight: nativeInputWeight,
     minAbsoluteFee: 0,
     maxInputsToSelect: 50,
@@ -461,21 +475,23 @@ export async function createSmartTransaction(
     mandatoryInputConflicts: [],
     inputs: unspent.map(c => ({
       identifier: `${c.txid}_${c.vout}`,
-      weight: addressType(c.address) === 'bech32' ? nativeInputWeight : wrappedSegwitWeight,
+      weight: (addressType(c.address) === 'p2wpkh') ? nativeInputWeight : wrappedSegwitWeight,
       amount: c.amount,
     })),
     outputs: [
       {
         identifier: 'dest',
         weight:
-          addressType(to.bitcoinAddress) === 'bech32'
-            ? nativeWeight
+          addressType(to.bitcoinAddress) === 'p2wpkh'
+            ? config.p2wpkh
             : addressType(to.bitcoinAddress) === 'p2sh'
-            ? multisig
-            : addressType(to.bitcoinAddress) === 'legacy'
-            ? legacyWeight
+            ? config.p2shp2wpkh
+            : addressType(to.bitcoinAddress) === 'p2pkh'
+            ? config.p2pkh
             : addressType(to.bitcoinAddress) === 'p2wsh'
-            ? segwitmultiWeight
+            ? config.p2wsh 
+            : addressType(to.bitcoinAddress) === 'p2tr'
+            ? config.p2tr
             : 128,
         amount: to.amount,
         requirement: 'M',
@@ -483,14 +499,16 @@ export async function createSmartTransaction(
       ...optionals.map(h => ({
         identifier: h.hash().toPOD(),
         weight:
-          addressType(h.bitcoinAddress) === 'bech32'
-            ? nativeWeight
+          addressType(h.bitcoinAddress) === 'p2wpkh'
+            ? config.p2wpkh
             : addressType(h.bitcoinAddress) === 'p2sh'
-            ? multisig
-            : addressType(h.bitcoinAddress) === 'legacy'
-            ? legacyWeight
+            ? config.p2shp2wpkh
+            : addressType(h.bitcoinAddress) === 'p2pkh'
+            ? config.p2pkh
             : addressType(to.bitcoinAddress) === 'p2wsh'
-            ? segwitmultiWeight
+            ? config.p2wsh
+            : addressType(to.bitcoinAddress) === 'p2tr'
+            ? config.p2tr
             : 128,
         amount: h.amount,
         requirement: 'P',

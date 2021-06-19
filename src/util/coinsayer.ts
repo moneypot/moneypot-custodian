@@ -1,4 +1,6 @@
 import * as https from 'https';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { useTor } from '../config';
 
 export interface Problem {
   minFeeRate: number;
@@ -25,6 +27,8 @@ export interface Selection {
   miningSacrifice: number;
 }
 
+const agent = useTor ? new SocksProxyAgent("socks5://127.0.1:9050") : undefined
+
 export function req(p: Problem): Promise<Selection | Error> {
   return new Promise((resolve, reject) => {
     const options = {
@@ -34,6 +38,7 @@ export function req(p: Problem): Promise<Selection | Error> {
       headers: {
         'Content-Type': 'application/json',
       },
+      agent
     };
 
     const req = https.request(options, res => {

@@ -56,10 +56,12 @@ export default async function processHookin(hookin: hi.Hookin) {
 
     // TODO: process.env dust fees?
 
+    // TODO: add p2tr deposit
+
     if (txinfo.amount >= 1e8) {
       if (txinfo.confirmations >= 6) {
         const getFee = async (txinfo: any) => {
-          return txinfo.address === null ? 500 : addressType(txinfo.address) === 'bech32' ? 100 : 500;
+          return txinfo.address === null ? 500 : addressType(txinfo.address) === 'p2wpkh' ? 100 : 500;
         };
         // const consolidationFee = 100; // todo: something saner
         await insertStatus(new HookinAccepted(hookin.hash(), await getFee(txinfo)));
@@ -71,7 +73,7 @@ export default async function processHookin(hookin: hi.Hookin) {
       if (txinfo.confirmations >= 1) {
         const getFee = async (txinfo: any) => {
           // ?
-          return txinfo.address === null ? 5000 : addressType(txinfo.address) === 'bech32' ? 1000 : 5000;
+          return txinfo.address === null ? 5000 : addressType(txinfo.address) === 'p2wpkh' ? 1000 : 5000;
         };
         await insertStatus(new HookinAccepted(hookin.hash(), await getFee(txinfo)));
         return;
@@ -82,7 +84,7 @@ export default async function processHookin(hookin: hi.Hookin) {
     if (1e6 >= txinfo.amount) {
       let confirmations = 1;
       const getFee = (txinfo: any) => {
-        return txinfo.address === null ? 5000 : addressType(txinfo.address) === 'bech32' ? 1000 : 5000;
+        return txinfo.address === null ? 5000 : addressType(txinfo.address) === 'p2wpkh' ? 1000 : 5000;
       };
 
       if (txinfo.confirmations >= confirmations) {

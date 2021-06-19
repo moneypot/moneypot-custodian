@@ -45,9 +45,12 @@ export function subscribeSettledInvoices(lastSettled: number, cb: (invoice: LndI
   return new Promise(resolve => {
     // We are going to miss the first settlement!
     // https://github.com/lightningnetwork/lnd/issues/2469
-    if (lastSettled === 0) {
-      lastSettled = 1;
-    }
+    
+    // this seems fixed now.
+    
+    // if (lastSettled === 0) {
+    //   lastSettled = 1;
+    // }
 
     let canceled = false;
 

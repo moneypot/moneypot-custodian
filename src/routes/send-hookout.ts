@@ -5,21 +5,10 @@ import StatusFailed from 'moneypot-lib/dist/status/failed';
 import { withTransaction, pool } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
-import { addressType } from '../util/rpc-client';
 import * as dbStatus from '../db/status';
-import * as config from '../config';
 
 import calcFeeSchedule from './fee-schedule';
-import {
-  legacyTransactionWeight,
-  wrappedTransactionWeight,
-  templateTransactionWeight,
-  legacyOutput,
-  segwitOutput,
-  wrappedOutput,
-  segmultiOutput,
-  segmultiTransactionWeight,
-} from '.././config';
+import * as config from '.././config';
 
 export default async function sendHookout(hookout: hi.Hookout) {
   if (!hookout.isAuthorized()) {
@@ -52,32 +41,38 @@ export default async function sendHookout(hookout: hi.Hookout) {
     case 'IMMEDIATE':
       switch (addressInfo.kind) {
         case 'p2pkh':
-          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * legacyTransactionWeight);
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2pkhTransactionWeight);
           break;
         case 'p2sh':
-          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * wrappedTransactionWeight);
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2shp2wpkhTransactionWeight);
           break;
         case 'p2wsh':
-          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * segmultiTransactionWeight);
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2wshTransactionWeight);
           break;
         case 'p2wpkh':
-          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * templateTransactionWeight);
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2wpkhTransactionWeight);
           break;
+        case 'p2tr':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2trTransactionWeight);
+          break;  
       }
       break;
     case 'BATCH':
       switch (addressInfo.kind) {
         case 'p2pkh':
-          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * legacyOutput);
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2pkh);
           break;
         case 'p2sh':
-          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * wrappedOutput);
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2shp2wpkh);
           break;
         case 'p2wsh':
-          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * segmultiOutput);
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2wsh);
           break;
-        default:
-          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * segwitOutput);
+        case 'p2wpkh':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2wpkh);
+          break;    
+        case 'p2tr':
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2tr);
           break;
       }
       break;
@@ -98,6 +93,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
       throw new Error('unexpected priority');
   }
 
+  // TODO: allow for a range of N satoshis so as to account for time
   if (hookout.fee !== expectedFee) {
     console.warn('Got fee of: ', hookout.fee, ' but expected: ', expectedFee);
     throw 'WRONG_FEE_RATE';
@@ -136,18 +132,23 @@ export default async function sendHookout(hookout: hi.Hookout) {
           }
           otherHookouts.push(h);
         }
-        // TODO: query stuck custom/immediate tx in case of uncatched errors?!
-        const calcCustom = () => { 
-          switch(addressType(hookout.bitcoinAddress)) { 
-            case 'bech32': 
-              return hookout.fee / config.templateTransactionWeight;
-            case 'legacy':
-              return hookout.fee / config.legacyTransactionWeight;
-            case 'p2sh': 
-              return hookout.fee / config.wrappedTransactionWeight;
-            case 'p2wsh': 
-              return hookout.fee / config.segmultiTransactionWeight;
 
+        // remove this ugly function
+        // TODO: query stuck custom/immediate tx in case of uncatched errors?!
+        const calcCustom = (addressType: string) => { 
+          switch(addressType) { 
+            case 'p2wpkh': 
+              return hookout.fee / config.p2wpkhTransactionWeight;
+            case 'legacy':
+              return hookout.fee / config.p2pkhTransactionWeight;
+            case 'p2sh': 
+              return hookout.fee / config.p2shp2wpkhTransactionWeight;
+            case 'p2wsh': 
+              return hookout.fee / config.p2wshTransactionWeight;
+            case 'p2tr': 
+              return hookout.fee / config.p2trTransactionWeight;
+            default:
+                throw new Error('unexpected type');
           }
         }
 
@@ -161,7 +162,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
                 hookout.priority === 'IMMEDIATE'
                   ? feeSchedule.immediateFeeRate
                   : hookout.priority === 'CUSTOM'
-                  ? calcCustom()
+                  ? calcCustom(addressInfo.kind)
                   : 0.25, // 0 = free transaction,
                 noChange,
                 hookout.rbf
@@ -172,7 +173,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
                 hookout.priority === 'IMMEDIATE'
                   ? feeSchedule.immediateFeeRate
                   : hookout.priority === 'CUSTOM'
-                  ? calcCustom()
+                  ? calcCustom(addressInfo.kind)
                   : 0.25, // 0 = free transaction,
                 noChange,
                 hookout.rbf
