@@ -1,5 +1,5 @@
 import * as hi from 'moneypot-lib';
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 
 import * as rpcClient from '../util/rpc-client';
 
@@ -11,7 +11,9 @@ let Spent: number[] = [];
 
 async function run() {
   console.log('running query');
-  const getClaimables = await pool.query(`SELECT claimable FROM claimables`);
+  // const getClaimables = await pool.query(`SELECT claimable FROM claimables`);
+  const getClaimables = await poolQuery(`SELECT claimable FROM claimables`);
+
   for (const c of getClaimables.rows) {
     const b: hi.POD.Claimable = c.claimable;
     switch (b.kind) {
@@ -38,7 +40,9 @@ async function run() {
     }
   }
 
-  const getStatuses = await pool.query(`SELECT status from STATUSES`);
+  // const getStatuses = await pool.query(`SELECT status from STATUSES`);
+  const getStatuses = await poolQuery(`SELECT status from STATUSES`);
+
   for (const s of getStatuses.rows) {
     let b: hi.POD.Status = s.status;
     switch (b.kind) {

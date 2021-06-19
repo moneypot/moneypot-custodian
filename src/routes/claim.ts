@@ -4,7 +4,7 @@ import StatusClaimed from 'moneypot-lib/dist/status/claimed';
 import * as nonceLookup from '../util/nonces';
 import { blindingSecretKeys } from '../custodian-info';
 
-import { pool, withTransaction } from '../db/util';
+import { pool, withTransaction, poolQuery } from '../db/util';
 
 import * as assert from 'assert';
 import { insertStatus } from '../db/status';
@@ -17,14 +17,18 @@ export default async function claim(body: any) {
 
   const claimHash = claimRequest.claimableHash.toPOD();
 
-  return withTransaction(async client => {
+  //return withTransaction(async client => {
     let claimable;
 
     {
       // First we need to know what's being claimed (so we can get the claimant)
-      const { rows } = await client.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1 FOR UPDATE`, [
+      // const { rows } = await client.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1 FOR UPDATE`, [
+      //   claimHash,
+      // ]);
+      const { rows } = await poolQuery(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1`, [
         claimHash,
-      ]);
+      ], claimHash, 'claim #1: lookup claimable');
+
 
       if (rows.length !== 1) {
         throw 'claimable hash not found';
@@ -36,7 +40,8 @@ export default async function claim(body: any) {
       }
     }
 
-    const { rows } = await client.query(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [claimHash]);
+    // const { rows } = await client.query(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [claimHash]);
+    const { rows } = await poolQuery(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [claimHash], claimHash, 'claim #2: lookup statuses');
 
     const statuses = rows.map((row: any) => {
       const s = hi.statusFromPOD(row['status']);
@@ -60,6 +65,7 @@ export default async function claim(body: any) {
 
     const blindingNonces = coinRequests.map(coin => coin.blindingNonce.toPOD());
 
+    // function will get throwed here. there have been no insertions so far, is a transaction really required?.
     const secretNonces = nonceLookup.pull(blindingNonces);
 
     assert.strictEqual(coinRequests.length, secretNonces.length);
@@ -80,6 +86,7 @@ export default async function claim(body: any) {
 
     const claimedStatus = new StatusClaimed(claimRequest, blindedExistenceProofs);
 
-    return insertStatus(claimedStatus, client);
-  });
+    // return insertStatus(claimedStatus, client);
+    return insertStatus(claimedStatus);
+    //});
 }

@@ -1,6 +1,6 @@
 import * as hi from 'moneypot-lib';
 
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 
 export default async function lightningInvoiceByClaimant(url: string) {
   const claimantStr = url.substring('/lightning-invoices-by-claimant/'.length);
@@ -10,9 +10,12 @@ export default async function lightningInvoiceByClaimant(url: string) {
     throw 'INVALID_CLAIMANT';
   }
 
-  const { rows } = await pool.query(`SELECT claimable, created FROM claimables WHERE claimable->>'claimant' = $1`, [
-    claimantStr,
-  ]);
+  // const { rows } = await pool.query(`SELECT claimable, created FROM claimables WHERE claimable->>'claimant' = $1`, [
+  //   claimantStr,
+  // ]);
+  const { rows } = await poolQuery(`SELECT claimable, created FROM claimables WHERE claimable->>'claimant' = $1`, [
+    claimantStr
+  ], claimantStr, 'invoice-claimant #1: check invoice by claimant');
 
   if (rows.length === 0) {
     return null;

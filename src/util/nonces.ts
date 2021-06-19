@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import * as hi from 'moneypot-lib';
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 
 // TODO: store nocnces in db..
 // RE: I guess this works?
@@ -26,15 +26,20 @@ export async function gen(count: number): Promise<ReadonlyArray<string>> {
     }
   }, nonceDuration);
   // We also store rejected nonces.
-  try {
-    await pool.query(
+  // try {
+  //   await pool.query(
+  //     `INSERT INTO nonces(nonce, privkey) VALUES($1, $2)
+  //  `,
+  //     [pubkeys, privkeys]
+  //   );
+  // } catch (err) {
+  //   console.error('could not run query: ', err);
+  // }
+      await poolQuery(
       `INSERT INTO nonces(nonce, privkey) VALUES($1, $2)
    `,
-      [pubkeys, privkeys]
+      [pubkeys, privkeys], privkeys, 'nonces #n: inserting into DB'
     );
-  } catch (err) {
-    console.error('could not run query: ', err);
-  }
   return pubkeys;
 }
 

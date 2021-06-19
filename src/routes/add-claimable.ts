@@ -5,7 +5,7 @@ import sendFeeBump from './send-feebump';
 import sendHookout from './send-hookout';
 import sendLightning from './send-lightning';
 import addHookin from './add-hookin';
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 
 export default async function addClaimable(body: any): Promise<hi.POD.Claimable & hi.POD.Acknowledged> {
   const claimable = hi.claimableFromPOD(body);
@@ -14,9 +14,14 @@ export default async function addClaimable(body: any): Promise<hi.POD.Claimable 
     throw 'could not parse claimable';
   }
   // quick precheck
-  const searchRes = await pool.query(`SELECT claimable, created FROM claimables WHERE claimable->>'hash' = $1`, [
-    claimable.hash().toPOD(),
-  ]);
+
+  const searchRes = await poolQuery(`SELECT claimable, created FROM claimables WHERE claimable->>'hash' = $1`, [claimable.hash().toPOD()], claimable.toPOD(), "Adding claimable precheck" )
+
+  // const searchRes = await pool.query(`SELECT claimable, created FROM claimables WHERE claimable->>'hash' = $1`, [
+  //   claimable.hash().toPOD(),
+  // ]);
+
+  // We return, even if the claimable is possibly not finalized. this would be an error and the client calling to refresh or w/e should not be any sort of practice anyway.
   if (searchRes.rows.length !== 0) {
     assert.equal(searchRes.rows.length, 1);
     let c = searchRes.rows[0].claimable as hi.POD.Claimable & hi.POD.Acknowledged;

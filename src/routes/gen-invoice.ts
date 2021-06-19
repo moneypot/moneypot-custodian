@@ -24,7 +24,8 @@ export default async function genInvoice(body: any) {
     throw 'expected an natural number for amount';
   }
 
-  const res = await db.pool.query(`SELECT claimable FROM claimables WHERE claimable->>'kind'='LightningInvoice' AND claimable->>'claimant' = $1`, [claimant.toPOD()]);
+  const res = await db.poolQuery(`SELECT claimable FROM claimables WHERE claimable->>'kind'='LightningInvoice' AND claimable->>'claimant' = $1`, [claimant.toPOD()], claimant.toPOD(), 'check if used before @ gen-invoice #1')
+  // const res = await db.pool.query(`SELECT claimable FROM claimables WHERE claimable->>'kind'='LightningInvoice' AND claimable->>'claimant' = $1`, [claimant.toPOD()]);
 
   if (res.rows.length === 1) {
     throw 'we already have an invoice for this claimant!';
@@ -33,19 +34,21 @@ export default async function genInvoice(body: any) {
   const invoice = await lightning.addInvoice(claimant, memo, amount);
 
   const ackedInvoice = hi.Acknowledged.acknowledge(invoice, ackSecretKey);
-
+ 
   const pod = ackedInvoice.toPOD();
 
-  try {
-    await db.pool.query(
-      `INSERT INTO claimables(claimable) VALUES($1)
-    `,
-      [pod]
-    );
-  } catch (err) {
-    console.error('could not run query: ', err, [ackedInvoice.hash().toPOD(), pod]);
-  }
+  await db.poolQuery(`INSERT INTO claimables(claimable) VALUES($1)`,[pod], pod, 'inserting invoice into db @gen-invoice #2')
+  // try {
+  //   await db.pool.query(
+  //     `INSERT INTO claimables(claimable) VALUES($1)
+  //   `,
+  //     [pod]
+  //   );
+  // } catch (err) {
+  //   console.error('could not run query: ', err, [ackedInvoice.hash().toPOD(), pod]);
+  // }
 
+  // this will never return if insertion fails
   return pod;
 }
 

@@ -1,5 +1,5 @@
 import * as hi from 'moneypot-lib';
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 
 export default async function getStatusesByClaimable(url: string) {
   const hash = url.substring('/statuses-by-claimable/'.length);
@@ -9,7 +9,8 @@ export default async function getStatusesByClaimable(url: string) {
     throw 'INVALID_HASH';
   }
 
-  const { rows } = await pool.query(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [hash]);
+  // const { rows } = await pool.query(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [hash]);
+  const { rows } = await poolQuery(`SELECT status FROM statuses WHERE status->>'claimableHash' = $1`, [hash], hash, 'status-claimable #1: get statuses by claimable');
 
   return rows.map((row: any) => row['status'] as hi.POD.Status & hi.POD.Acknowledged);
 }

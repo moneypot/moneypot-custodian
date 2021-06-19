@@ -6,7 +6,7 @@ import * as dbTransfer from '../db/transfer';
 import * as dbStatus from '../db/status';
 
 import * as rpcClient from '../util/rpc-client';
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 import BitcoinTransactionSent from 'moneypot-lib/dist/status/bitcoin-transaction-sent';
 
 import { assert } from 'console';
@@ -89,19 +89,42 @@ export default async function sendFeeBump(feebump: hi.FeeBump) {
       const status = new StatusBitcoinTransactionSent(feeBumpHash, newTxid);
 
       // maybe: Feebump ontop of feebump?
-      const getStatuses = await pool.query(
+      // const getStatuses = await pool.query(
+      //   `SELECT status FROM statuses WHERE status->>'kind' = 'BitcoinTransactionSent'
+      //  AND status->>'txid' = $1
+      //  `,
+      //   [oldTxid]
+      // );
+
+      const getStatuses = await poolQuery(
         `SELECT status FROM statuses WHERE status->>'kind' = 'BitcoinTransactionSent'
        AND status->>'txid' = $1
        `,
-        [oldTxid]
+        [oldTxid], oldTxid, 'send-feebump #1: get statuses of old txid'
       );
+
+      await poolQuery(
+        `INSERT INTO bitcoin_transactions(txid, hex, fee, status)
+    VALUES($1, $2, $3, 'SENT')
+  `,
+        [res.txid, oldTxid, Math.round(res.fee)]
+      , res.txid, 'send-feebump #n: inserting send query for feebumped tx');
+
+
       for (const { status } of getStatuses.rows) {
-        const getClaimables = await pool.query(
+        // const getClaimables = await pool.query(
+        //   `SELECT claimable FROM claimables WHERE claimable->>'hash' = $1
+        //  AND (claimable->>'kind' = 'Hookout' OR claimable->>'kind' = 'FeeBump')
+        //  `,
+        //   [status.claimableHash]
+        // );
+        const getClaimables = await poolQuery(
           `SELECT claimable FROM claimables WHERE claimable->>'hash' = $1
          AND (claimable->>'kind' = 'Hookout' OR claimable->>'kind' = 'FeeBump')
          `,
-          [status.claimableHash]
+          [status.claimableHash], status.claimableHash, 'send-feebump #2: get claimables from statuses'
         );
+
         for (const { claimable } of getClaimables.rows) {
           const actualClaimable = hi.claimableFromPOD(claimable);
           if (actualClaimable instanceof Error) {

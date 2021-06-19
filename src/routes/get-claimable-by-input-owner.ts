@@ -1,5 +1,5 @@
 import * as hi from 'moneypot-lib';
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 
 export default async function getClaimableByInputOwner(url: string) {
   const owner = url.substring('/claimable-by-input-owner/'.length);
@@ -9,11 +9,13 @@ export default async function getClaimableByInputOwner(url: string) {
     throw 'INVALID_OWNER';
   }
 
-  const {
-    rows,
-  } = await pool.query(
+  // const { rows } = await pool.query(
+  //   `SELECT claimable, created FROM claimables WHERE claimable->>'hash' = (SELECT transfer_hash FROM transfer_inputs WHERE owner = $1)`,
+  //   [owner]
+  // );
+  const { rows } = await poolQuery(
     `SELECT claimable, created FROM claimables WHERE claimable->>'hash' = (SELECT transfer_hash FROM transfer_inputs WHERE owner = $1)`,
-    [owner]
+    [owner], owner, "input-owner #1: get claimable by input owner"
   );
   if (rows.length === 0) {
     return null;

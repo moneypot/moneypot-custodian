@@ -10,7 +10,7 @@ import StatusLightningPaymentSent from 'moneypot-lib/dist/status/lightning-payme
 import StatusInvoiceSettled from 'moneypot-lib/dist/status/invoice-settled';
 import * as config from '../config';
 
-import { pool, withTransaction } from '../db/util';
+import { pool, withTransaction, poolQuery } from '../db/util';
 
 export default async function sendLightning(payment: hi.LightningPayment) {
   if (payment.fee < 100) {
@@ -44,67 +44,69 @@ export default async function sendLightning(payment: hi.LightningPayment) {
 
 async function sendPayment(payment: hi.LightningPayment) {
   // First we are going to check if it's an internal send
-  const internalRes = await withTransaction(async client => {
-    // we just use FOR UPDATE as a poor mans lock
-    const { rows } = await client.query(
-      `
-      SELECT claimable FROM claimables
-        WHERE claimable->>'kind' = 'LightningInvoice'
-        AND claimable->>'paymentRequest' = $1
-      FOR UPDATE  
-      `,
-      [payment.paymentRequest]
-    );
+  // const internalRes = await withTransaction(async client => {
+  //   // we just use FOR UPDATE as a poor mans lock
+  //   const { rows } = await client.query(
+  //     `
+  //     SELECT claimable FROM claimables
+  //       WHERE claimable->>'kind' = 'LightningInvoice'
+  //       AND claimable->>'paymentRequest' = $1
+  //     FOR UPDATE  
+  //     `,
+  //     [payment.paymentRequest]
+  //   );
 
-    if (rows.length !== 1) {
-      return 'NOT_INTERNAL';
-    }
+  //   if (rows.length !== 1) {
+  //     return 'NOT_INTERNAL';
+  //   }
 
-    const claimable = rows[0].claimable;
+  //   const claimable = rows[0].claimable;
 
-    // Now make sure it's not already paid...
-    const countRes = await client.query(
-      `
-      SELECT COUNT(*) as count FROM statuses
-      WHERE status->>'kind'='InvoiceSettled' AND status->>'claimableHash' = $1
-    `,
-      [claimable.hash]
-    );
+  //   // Now make sure it's not already paid...
+  //   const countRes = await client.query(
+  //     `
+  //     SELECT COUNT(*) as count FROM statuses
+  //     WHERE status->>'kind'='InvoiceSettled' AND status->>'claimableHash' = $1
+  //   `,
+  //     [claimable.hash]
+  //   );
 
-    if (countRes.rows[0].count !== 0) {
-      return new Error('INVOICE_ALREADY_PAID');
-    }
+  //   if (countRes.rows[0].count !== 0) {
+  //     return new Error('INVOICE_ALREADY_PAID');
+  //   }
 
-    const cancelErr = await lightning.cancelInvoiceByPaymentRequest(payment.paymentRequest);
-    if (cancelErr) {
-      console.warn('warning: could not cancel invoice, got: ', cancelErr);
-      return new Error('COULD_NOT_CANCEL_EXISTING_INVOICE');
-    }
+  //   const cancelErr = await lightning.cancelInvoiceByPaymentRequest(payment.paymentRequest);
+  //   if (cancelErr) {
+  //     console.warn('warning: could not cancel invoice, got: ', cancelErr);
+  //     return new Error('COULD_NOT_CANCEL_EXISTING_INVOICE');
+  //   }
 
-    const invoice = hi.claimableFromPOD(claimable);
-    if (!(invoice instanceof hi.LightningInvoice)) {
-      throw new Error(
-        'assertion failure: expected a lightning invoice, got something else for ' + payment.paymentRequest
-      );
-    }
+  //   const invoice = hi.claimableFromPOD(claimable);
+  //   if (!(invoice instanceof hi.LightningInvoice)) {
+  //     throw new Error(
+  //       'assertion failure: expected a lightning invoice, got something else for ' + payment.paymentRequest
+  //     );
+  //   }
 
-    // Let's look it up, so we can find hte preimage
-    const lndInvoice = await lightning.lookupInvoicebyPaymentRequest(invoice.paymentRequest);
-    if (!lndInvoice) {
-      throw new Error('could not lookup settled invoice');
-    }
+  //   // Let's look it up, so we can find hte preimage
+  //   const lndInvoice = await lightning.lookupInvoicebyPaymentRequest(invoice.paymentRequest);
+  //   if (!lndInvoice) {
+  //     throw new Error('could not lookup settled invoice');
+  //   }
 
-    // Ok, we're going to fake a transfer
-    const settleTime = new Date();
-    const settleStatus = new StatusInvoiceSettled(invoice.hash(), payment.amount, lndInvoice.r_preimage, settleTime);
+  //   // Ok, we're going to fake a transfer
+  //   const settleTime = new Date();
+  //   const settleStatus = new StatusInvoiceSettled(invoice.hash(), payment.amount, lndInvoice.r_preimage, settleTime);
 
-    const fee = 100;
+  //   const fee = 100;
 
-    const paymentStatus = new StatusLightningPaymentSent(payment.hash(), lndInvoice.r_preimage, fee);
+  //   const paymentStatus = new StatusLightningPaymentSent(payment.hash(), lndInvoice.r_preimage, fee);
 
-    await dbStatus.insertStatus(paymentStatus, client);
-    await dbStatus.insertStatus(settleStatus, client);
-  });
+  //   await dbStatus.insertStatus(paymentStatus, client);
+  //   await dbStatus.insertStatus(settleStatus, client);
+  // });
+
+  const internalRes = await isInternalAndSettle(payment)
 
   let err;
 
@@ -128,4 +130,68 @@ async function sendPayment(payment: hi.LightningPayment) {
     const status = new StatusFailed(payment.hash(), err.message, payment.fee + payment.amount - 100); // 100 is spam fee
     await dbStatus.insertStatus(status);
   }
+}
+
+
+
+
+const isInternalAndSettle = async (payment: hi.LightningPayment) => { 
+    
+  const { rows } = await poolQuery(
+    `
+    SELECT claimable FROM claimables
+      WHERE claimable->>'kind' = 'LightningInvoice'
+      AND claimable->>'paymentRequest' = $1
+    `,
+    [payment.paymentRequest], payment.paymentRequest, "send-lightning #2: lookup if internal"
+  );
+
+  if (rows.length !== 1) {
+    return 'NOT_INTERNAL';
+  }
+
+  const claimable = rows[0].claimable;
+
+  // Now make sure it's not already paid...
+  const countRes = await poolQuery(
+    `
+    SELECT COUNT(*) as count FROM statuses
+    WHERE status->>'kind'='InvoiceSettled' AND status->>'claimableHash' = $1
+  `,
+    [claimable.hash], claimable.hash, 'send-lightning #2: lookup if paid'
+  );
+
+  if (countRes.rows[0].count !== 0) {
+    return new Error('INVOICE_ALREADY_PAID');
+  }
+
+  const cancelErr = await lightning.cancelInvoiceByPaymentRequest(payment.paymentRequest);
+  if (cancelErr) {
+    console.warn('warning: could not cancel invoice, got: ', cancelErr);
+    return new Error('COULD_NOT_CANCEL_EXISTING_INVOICE');
+  }
+
+  const invoice = hi.claimableFromPOD(claimable);
+  if (!(invoice instanceof hi.LightningInvoice)) {
+    throw new Error(
+      'assertion failure: expected a lightning invoice, got something else for ' + payment.paymentRequest
+    );
+  }
+
+  // Let's look it up, so we can find hte preimage
+  const lndInvoice = await lightning.lookupInvoicebyPaymentRequest(invoice.paymentRequest);
+  if (!lndInvoice) {
+    throw new Error('could not lookup settled invoice');
+  }
+
+  // Ok, we're going to fake a transfer
+  const settleTime = new Date();
+  const settleStatus = new StatusInvoiceSettled(invoice.hash(), payment.amount, lndInvoice.r_preimage, settleTime);
+
+  const fee = 100;
+
+  const paymentStatus = new StatusLightningPaymentSent(payment.hash(), lndInvoice.r_preimage, fee);
+
+  await dbStatus.insertStatus(paymentStatus);
+  await dbStatus.insertStatus(settleStatus);
 }

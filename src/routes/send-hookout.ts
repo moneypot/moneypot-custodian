@@ -2,7 +2,7 @@ import * as hi from 'moneypot-lib';
 import StatusBitcoinTransactionSent from 'moneypot-lib/dist/status/bitcoin-transaction-sent';
 import StatusFailed from 'moneypot-lib/dist/status/failed';
 
-import { withTransaction, pool } from '../db/util';
+import { withTransaction, pool, poolQuery } from '../db/util';
 import * as dbTransfer from '../db/transfer';
 import * as rpcClient from '../util/rpc-client';
 import * as dbStatus from '../db/status';
@@ -73,6 +73,9 @@ export default async function sendHookout(hookout: hi.Hookout) {
           break;    
         case 'p2tr':
           expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2tr);
+          break;            
+        default:
+          expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2wpkh);
           break;
       }
       break;
@@ -93,7 +96,6 @@ export default async function sendHookout(hookout: hi.Hookout) {
       throw new Error('unexpected priority');
   }
 
-  // TODO: allow for a range of N satoshis so as to account for time
   if (hookout.fee !== expectedFee) {
     console.warn('Got fee of: ', hookout.fee, ' but expected: ', expectedFee);
     throw 'WRONG_FEE_RATE';
@@ -111,18 +113,29 @@ export default async function sendHookout(hookout: hi.Hookout) {
     // actually send...
     // If we're going to send right now, lets get some others...
     if (hookout.priority === 'IMMEDIATE' || hookout.priority === 'CUSTOM' || hookout.priority === 'FREE') {
-      await withTransaction(async dbClient => {
+    //  await withTransaction(async dbClient => {
         let otherHookouts: hi.Hookout[] = [];
         // Batched can never fail, (free can fail only if the custodian crashes and it is the initiator...?)
-        const queryRes = await dbClient.query(
+        // const queryRes = await dbClient.query(
+        //   `SELECT claimable FROM claimables WHERE claimable->>'kind' = 'Hookout'
+        //   AND claimable->>'priority' = $1 AND (claimable->>'hash') != $2 AND (claimable->>'hash') NOT IN (SELECT (status->>'claimableHash') FROM statuses WHERE (status->>'kind' = 'BitcoinTransactionSent' OR status->>'kind' = 'Failed')) 
+        //    FOR UPDATE
+        // `,
+        //   [
+        //     hookout.priority === 'IMMEDIATE' ? 'BATCH' : hookout.priority === 'FREE' ? 'FREE' : undefined,
+        //     hookout.toPOD().hash,
+        //   ]
+        // );
+
+
+        const queryRes = await poolQuery(
           `SELECT claimable FROM claimables WHERE claimable->>'kind' = 'Hookout'
           AND claimable->>'priority' = $1 AND (claimable->>'hash') != $2 AND (claimable->>'hash') NOT IN (SELECT (status->>'claimableHash') FROM statuses WHERE (status->>'kind' = 'BitcoinTransactionSent' OR status->>'kind' = 'Failed')) 
-           FOR UPDATE
         `,
           [
             hookout.priority === 'IMMEDIATE' ? 'BATCH' : hookout.priority === 'FREE' ? 'FREE' : undefined,
             hookout.toPOD().hash,
-          ]
+          ], hookout.toPOD(), 'send-hookout #n: get batch/free txs'
         );
 
         for (const { claimable } of queryRes.rows) {
@@ -135,7 +148,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
 
         // remove this ugly function
         // TODO: query stuck custom/immediate tx in case of uncatched errors?!
-        const calcCustom = (addressType: string) => { 
+        const calcCustom = (addressType: any) => { 
           switch(addressType) { 
             case 'p2wpkh': 
               return hookout.fee / config.p2wpkhTransactionWeight;
@@ -153,7 +166,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
         }
 
 
-        if (hookout.priority !== 'BATCH') {
+       // if (hookout.priority !== 'BATCH') {
           const noChange = hookout.priority === 'FREE';
           const sendTransaction = config.hasCoinsayer
             ? await rpcClient.createSmartTransaction(
@@ -194,22 +207,30 @@ export default async function sendHookout(hookout: hi.Hookout) {
               sendTransaction
             );
             const status = new StatusFailed(hookoutHash, sendTransaction.message, hookout.fee + (hookout.amount - 100));
-            await dbStatus.insertStatus(status, dbClient);
-            return;
+            // await dbStatus.insertStatus(status, dbClient);
+            await dbStatus.insertStatus(status);
+
+            return ackClaimable.toPOD();
           }
           const txid = hi.Buffutils.toHex(sendTransaction.txid);
 
-          await dbClient.query(
+      //     await dbClient.query(
+      //       `INSERT INTO bitcoin_transactions(txid, hex, fee, status)
+      //   VALUES($1, $2, $3, 'SENDING')
+      // `,
+      //       [txid, sendTransaction.hex, Math.round(sendTransaction.fee)]
+      //     );
+          await poolQuery(
             `INSERT INTO bitcoin_transactions(txid, hex, fee, status)
         VALUES($1, $2, $3, 'SENDING')
       `,
             [txid, sendTransaction.hex, Math.round(sendTransaction.fee)]
-          );
-
+          , txid, 'send-hookout #n: inserting sending query');
           // TODO: can be flattened into a single query
           for (const h of sendTransaction.allOutputs) {
             const status = new StatusBitcoinTransactionSent(h.hash(), sendTransaction.txid);
-            await dbStatus.insertStatus(status, dbClient);
+            // await dbStatus.insertStatus(status, dbClient);
+            await dbStatus.insertStatus(status);
           }
 
           // actually send in the background
@@ -218,7 +239,10 @@ export default async function sendHookout(hookout: hi.Hookout) {
           (async () => {
             try {
               await rpcClient.sendRawTransaction(sendTransaction.hex);
-              await pool.query(`UPDATE bitcoin_transactions SET status = 'SENT' WHERE txid = $1`, [txid]);
+              // no updates, only inserts (easier for safe logical replication so two inserts per txid, one where sending, one where send
+              // await pool.query(`UPDATE bitcoin_transactions SET status = 'SENT' WHERE txid = $1`, [txid]);
+              await poolQuery(`INSERT INTO bitcoin_transactions(txid, hex, fee, status)
+              VALUES($1, $2, $3, $4)`, [`${txid}_k`, sendTransaction.hex, sendTransaction.fee, 'SENT'], txid, "bitcoin transactions #n: we are sending");
             } catch (err) {
               console.error(
                 '[INTERNAL_ERROR] [ACTION_REQUIRED] might not be able to have sent transaction: ',
@@ -229,8 +253,8 @@ export default async function sendHookout(hookout: hi.Hookout) {
               return;
             }
           })();
-        }
-      });
+      //  }
+      //});
     }
   }
 

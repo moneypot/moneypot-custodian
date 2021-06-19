@@ -95,12 +95,20 @@ async function run() {
     throw new Error('expected txid to be a string');
   }
 
+
+  // why manual different table?
   const z = await rpcClient.sendRawTransaction(signedhexstring);
-  await db.pool.query(
+//   await db.pool.query(
+//     `INSERT INTO bitcoin_transactions_manual(transaction)
+// VALUES($1)
+// `,
+//     [decodeRes] // TODO, not sure if this always works
+//   );
+  await db.poolQuery(
     `INSERT INTO bitcoin_transactions_manual(transaction)
 VALUES($1)
 `,
-    [decodeRes] // TODO, not sure if this always works
+    [decodeRes], decodeRes, 'consolidateFunds #2: ' // TODO, not sure if this always works
   );
   console.log(`Transaction has been sent! [txid]:[${z}]`);
 }

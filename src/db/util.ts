@@ -13,6 +13,18 @@ export const pool = new Pool({
   connectionString,
 });
 
+export const poolQuery = async (query: string, variables?: any, context?: string | Object, AdditionalInfo?: string) => {
+  let result;
+  try {
+    result = await pool.query(query, variables)
+  } catch (error) {
+    console.log('[DB issues!] [manual intervention required!]', error, context, AdditionalInfo, query, variables)
+    process.exit() // always crash the custodian on error, we do not want to continue operating with DB errors.
+  }
+  return result
+}
+
+// shouldn't we aim for full finalization at all times in regards to DB insertions? I don't see when rollbacking would be necessary nor whether or not it's actually a favourable practice
 export async function withTransaction<T>(f: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
 

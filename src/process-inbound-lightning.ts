@@ -12,11 +12,18 @@ export default async function processInboundLightning() {
     console.log('Going to subscribe to invoices. Highest processed is: ', lastSettleIndex);
 
     await lightning.subscribeSettledInvoices(lastSettleIndex, async lndInvoice => {
-      const { rows } = await db.pool.query(
+      // const { rows } = await db.pool.query(
+      //   `SELECT claimable->>'hash' as hash FROM claimables
+      //     WHERE claimable->>'kind' = 'LightningInvoice' AND claimable->>'paymentRequest' = $1`,
+      //   [lndInvoice.payment_request]
+      // );
+
+      const { rows } = await db.poolQuery(
         `SELECT claimable->>'hash' as hash FROM claimables
           WHERE claimable->>'kind' = 'LightningInvoice' AND claimable->>'paymentRequest' = $1`,
-        [lndInvoice.payment_request]
+        [lndInvoice.payment_request], lndInvoice.payment_request, 'process-inbound-lightning #1: get invoice'
       );
+
 
       if (rows.length !== 1) {
         console.warn('warn: could not find invoice with payment_request of: ', lndInvoice.payment_request);
@@ -54,7 +61,18 @@ export default async function processInboundLightning() {
 async function getLastSettleInvoiceIndex(before: Date = new Date()): Promise<number> {
   // To find the ~last settledInvoice, we're going to search for the last invoice in our db that was settled
   // then look it up
-  const { rows } = await db.pool.query(
+  // const { rows } = await db.pool.query(
+  //   `
+  //     WITH x AS (
+  //       SELECT status->>'claimableHash' as claimableHash, created
+  //       FROM statuses WHERE status->>'kind' = 'InvoiceSettled'
+  //       AND created < $1
+  //       ORDER BY created DESC LIMIT 1
+  //     )
+  //     SELECT claimable, x.created as settled_time FROM claimables, x WHERE claimable->>'hash' = x.claimableHash`,
+  //   [before]
+  // );
+  const { rows } = await db.poolQuery(
     `
       WITH x AS (
         SELECT status->>'claimableHash' as claimableHash, created
@@ -63,7 +81,7 @@ async function getLastSettleInvoiceIndex(before: Date = new Date()): Promise<num
         ORDER BY created DESC LIMIT 1
       )
       SELECT claimable, x.created as settled_time FROM claimables, x WHERE claimable->>'hash' = x.claimableHash`,
-    [before]
+    [before], before, 'process-inbound-lightning #2: get last invoice'
   );
 
   if (rows.length === 0) {

@@ -1,16 +1,21 @@
 import * as hi from 'moneypot-lib';
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 import processHookin from '../util/process-hookin';
 
 export default async function run() {
   console.log('running query');
-  const { rows } = await pool.query(`
+  // const { rows } = await pool.query(`
+  //       SELECT * FROM claimables WHERE claimable->>'kind'='Hookin'
+  //       AND NOT EXISTS (
+  //           SELECT * FROM statuses WHERE status->>'claimableHash'=claimable->>'hash'
+  //       )
+  //   `);
+  const { rows } = await poolQuery(`
         SELECT * FROM claimables WHERE claimable->>'kind'='Hookin'
         AND NOT EXISTS (
             SELECT * FROM statuses WHERE status->>'claimableHash'=claimable->>'hash'
         )
     `);
-
   for (const row of rows) {
     const hookin = hi.Hookin.fromPOD(row.claimable);
     if (hookin instanceof Error) {

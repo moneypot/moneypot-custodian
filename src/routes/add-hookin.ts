@@ -4,7 +4,7 @@ import * as rpcClient from '../util/rpc-client';
 import ci, { fundingSecretKey, ackSecretKey } from '../custodian-info';
 import processHookin from '../util/process-hookin';
 
-import { pool } from '../db/util';
+import { pool, poolQuery } from '../db/util';
 import * as config from '../config';
 
 // body should be { hookin, claimRequest }
@@ -32,9 +32,10 @@ export default async function addHookin(hookin: hi.Hookin): Promise<R> {
   const ackdClaimable = hi.Acknowledged.acknowledge(hookin, ackSecretKey);
 
   const ackdClaimablePOD = ackdClaimable.toPOD() as R;
-
-  await pool.query(`INSERT INTO claimables(claimable) VALUES($1) ON CONFLICT DO NOTHING`, [ackdClaimablePOD]);
-
+  
+  // await pool.query(`INSERT INTO claimables(claimable) VALUES($1) ON CONFLICT DO NOTHING`, [ackdClaimablePOD]);
+  await poolQuery(`INSERT INTO claimables(claimable) VALUES($1) ON CONFLICT DO NOTHING`, [ackdClaimablePOD], ackdClaimablePOD, 'add-hookin #1: adding hookin');
+  
   // process in the background...
   processHookin(hookin);
 
