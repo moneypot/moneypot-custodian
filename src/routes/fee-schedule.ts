@@ -1,5 +1,5 @@
 import * as rpcClient from '../util/rpc-client';
-import { templateTransactionWeight } from '../config';
+import * as config from '../config';
 
 type feeInterface = {
   consolidationFeeRate: number;
@@ -19,7 +19,7 @@ export default async function(): Promise<feeInterface | Error> {
   return {
     consolidationFeeRate,
     immediateFeeRate,
-    immediate: Math.ceil(immediateFeeRate * templateTransactionWeight), // 140.25 != 141 ...
+    immediate: Math.ceil(immediateFeeRate * config.p2wpkhTransactionWeight), // 140.25 != 141 ... // remove immediate and batch no longer needed
     batch: Math.round(immediateFeeRate * 32), // TODO: factor 32 out (it's the size of an output..)
   };
 }
