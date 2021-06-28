@@ -43,13 +43,15 @@ export default async function sendFeeBump(feebump: hi.FeeBump) {
   const minValue = Math.round((hasSize.weight / 4) * 5);
   if (expectedfee > minValue) {
     if (expectedfee > feebump.amount) {
-      throw `EXPECTED ${expectedfee} sat, but received ${feebump.amount} sat. Increase your feebump by ${expectedfee -
-        feebump.amount} sat`;
+      throw `EXPECTED ${expectedfee} sat, but received ${feebump.amount} sat. Increase your feebump by ${
+        expectedfee - feebump.amount
+      } sat`;
     }
   } else if (minValue >= expectedfee) {
     if (minValue > feebump.amount) {
-      throw `EXPECTED ${minValue} sat, but received ${feebump.amount} sat. Increase your feebump by ${minValue -
-        feebump.amount} sat`;
+      throw `EXPECTED ${minValue} sat, but received ${feebump.amount} sat. Increase your feebump by ${
+        minValue - feebump.amount
+      } sat`;
     }
   }
 
@@ -62,7 +64,7 @@ export default async function sendFeeBump(feebump: hi.FeeBump) {
   if (isNew) {
     // send in the background
 
-    (async function() {
+    (async function () {
       const oldTxid: string = hi.Buffutils.toHex(feebump.txid);
 
       const previousTx = await rpcClient.getMemPoolEntry(oldTxid);

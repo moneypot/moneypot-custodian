@@ -386,17 +386,15 @@ export async function bumpFee(txid: string, confTarget: number): Promise<BumpFee
   return res;
 }
 
-export function addressType(address: string) { 
-  const x = decodeBitcoinAddress(address)
-  if (x instanceof Error) { 
-    throw 'invalid address'
+export function addressType(address: string) {
+  const x = decodeBitcoinAddress(address);
+  if (x instanceof Error) {
+    throw 'invalid address';
   }
-  return x.kind
+  return x.kind;
 }
 
-
-
-// this no longer is sufficient due to p2tr using v1 
+// this no longer is sufficient due to p2tr using v1
 // export function addressType(address: string) {
 //   if (address.startsWith('1') || address.startsWith('m') || address.startsWith('n')) {
 //     return 'legacy';
@@ -453,11 +451,11 @@ export async function createSmartTransaction(
     feeRate = Math.max(0.25, consolidationFeeRate * 0.9); // we can't send less than 1 sat/vbyte
   }
 
- // const multisig = 128;
- // const nativeWeight = 124;
- // const legacyWeight = 136;
+  // const multisig = 128;
+  // const nativeWeight = 124;
+  // const legacyWeight = 136;
 
- // these are not exactly right
+  // these are not exactly right
   const nativeInputWeight = 67.75 * 4;
   const wrappedSegwitWeight = 90.75 * 4; // TODO, this doesn't match?
 
@@ -473,9 +471,9 @@ export async function createSmartTransaction(
     minChangeAmount: 54600, // super overkill
     timeout: 10, // second
     mandatoryInputConflicts: [],
-    inputs: unspent.map(c => ({
+    inputs: unspent.map((c) => ({
       identifier: `${c.txid}_${c.vout}`,
-      weight: (addressType(c.address) === 'p2wpkh') ? nativeInputWeight : wrappedSegwitWeight,
+      weight: addressType(c.address) === 'p2wpkh' ? nativeInputWeight : wrappedSegwitWeight,
       amount: c.amount,
     })),
     outputs: [
@@ -489,14 +487,14 @@ export async function createSmartTransaction(
             : addressType(to.bitcoinAddress) === 'p2pkh'
             ? config.p2pkh
             : addressType(to.bitcoinAddress) === 'p2wsh'
-            ? config.p2wsh 
+            ? config.p2wsh
             : addressType(to.bitcoinAddress) === 'p2tr'
             ? config.p2tr
             : 128,
         amount: to.amount,
         requirement: 'M',
       },
-      ...optionals.map(h => ({
+      ...optionals.map((h) => ({
         identifier: h.hash().toPOD(),
         weight:
           addressType(h.bitcoinAddress) === 'p2wpkh'
@@ -570,7 +568,7 @@ export async function createSmartTransaction(
     }
   }
 
-  const inputs = res.inputs.map(id => {
+  const inputs = res.inputs.map((id) => {
     const [txid, vout] = id.split('_');
     return { txid, vout: Number.parseInt(vout) };
   });

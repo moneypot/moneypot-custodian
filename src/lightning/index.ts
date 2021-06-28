@@ -27,7 +27,7 @@ process.env.GRPC_SSL_CIPHER_SUITES = 'HIGH+ECDSA';
 
 let sslCreds = grpc.credentials.createSsl(Buffer.from(args.cert, 'utf8'));
 
-let macaroonCreds = grpc.credentials.createFromMetadataGenerator(function(mArgs: any, callback: any) {
+let macaroonCreds = grpc.credentials.createFromMetadataGenerator(function (mArgs: any, callback: any) {
   let metadata = new grpc.Metadata();
   metadata.add('macaroon', args.macaroon);
   callback(null, metadata);
@@ -42,12 +42,12 @@ let invoices = new invoicesrpc.Invoices(args.host, creds);
 const notifMutex = new Mutex();
 
 export function subscribeSettledInvoices(lastSettled: number, cb: (invoice: LndInvoice) => Promise<void>) {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     // We are going to miss the first settlement!
     // https://github.com/lightningnetwork/lnd/issues/2469
-    
+
     // this seems fixed now.
-    
+
     // if (lastSettled === 0) {
     //   lastSettled = 1;
     // }
@@ -56,7 +56,7 @@ export function subscribeSettledInvoices(lastSettled: number, cb: (invoice: LndI
 
     const call = lightning.subscribeInvoices({ settle_index: lastSettled });
 
-    call.on('data', function(invoice: LndInvoice) {
+    call.on('data', function (invoice: LndInvoice) {
       notifMutex.runExclusive(async () => {
         if (canceled || invoice.state !== 'SETTLED') return;
 
@@ -69,7 +69,7 @@ export function subscribeSettledInvoices(lastSettled: number, cb: (invoice: LndI
         }
       });
     });
-    call.on('end', function() {
+    call.on('end', function () {
       // The server has closed the stream
       // let's let everything currently running to process and tell the caller to restart
       console.warn('lnd closed subscribe stream');

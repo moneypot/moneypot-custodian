@@ -17,17 +17,17 @@ export function getApi(type?: string, value?: string, command?: string): Promise
     const request = https.get(
       `https://api.blockcypher.com/v1/btc/test3?token=${BlockCyperApiToken}/${type}}/${value}/${command}`,
       {},
-      response => {
+      (response) => {
         if (response.statusCode) {
           if (response.statusCode < 200 || response.statusCode > 299) {
             reject(new Error('Failed to load page' + response.statusCode));
           }
         }
         let d = '';
-        response.on('data', c => (d += c));
+        response.on('data', (c) => (d += c));
         response.on('end', () => resolve(JSON.parse(d)));
       }
     );
-    request.on('error', err => reject(err.message));
+    request.on('error', (err) => reject(err.message));
   });
 }

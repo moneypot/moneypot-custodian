@@ -5,7 +5,7 @@ export const bNetwork: boolean = process.env.CURRENCY === 'tBTC' ? true : false;
 
 export const hasCoinsayer: boolean = process.env.COINSAYER === 'false' ? false : true; // assume true
 
-export const useTor: boolean = true
+export const useTor: boolean = true;
 // export const has0conf: boolean = false; // only enable if you know what you're doing
 // export const BlockCyperApiToken = 'AnyTokenHere';
 
@@ -25,7 +25,6 @@ export const p2pkh = 34 * 4;
 export const p2shp2wpkh = 32 * 4;
 export const p2wpkh = 31 * 4;
 export const p2wsh = 43 * 4;
-
 
 export const p2tr = 43 * 4;
 export const p2trTransactionWeight = 609;

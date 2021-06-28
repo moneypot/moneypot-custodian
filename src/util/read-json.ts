@@ -1,11 +1,11 @@
 import http from 'http';
 
 // TODO: handle max size..
-export default function(req: http.IncomingMessage): Promise<any> {
+export default function (req: http.IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let body = '';
 
-    req.on('data', chunk => {
+    req.on('data', (chunk) => {
       body += chunk.toString();
     });
 

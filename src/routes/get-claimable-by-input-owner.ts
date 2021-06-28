@@ -9,9 +9,7 @@ export default async function getClaimableByInputOwner(url: string) {
     throw 'INVALID_OWNER';
   }
 
-  const {
-    rows,
-  } = await pool.query(
+  const { rows } = await pool.query(
     `SELECT claimable, created FROM claimables WHERE claimable->>'hash' = (SELECT transfer_hash FROM transfer_inputs WHERE owner = $1)`,
     [owner]
   );

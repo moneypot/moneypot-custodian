@@ -1,6 +1,8 @@
 import { Pool, PoolClient, types } from 'pg';
 import http from 'http';
-types.setTypeParser(20, function(val) {
+// import crypto from 'crypto';
+
+types.setTypeParser(20, function (val) {
   return parseInt(val);
 });
 
@@ -18,6 +20,12 @@ export async function withTransaction<T>(f: (client: PoolClient) => Promise<T>):
 
   try {
     await client.query('BEGIN');
+    // FOR UPDATE is useless when we do this
+    await client.query('LOCK TABLE claimables IN ACCESS EXCLUSIVE MODE');
+    await client.query('LOCK TABLE transfer_inputs IN ACCESS EXCLUSIVE MODE');
+
+    await client.query('LOCK TABLE statuses IN ACCESS EXCLUSIVE MODE'); // don't think this one is necessary
+
     const r = await f(client);
     await client.query('COMMIT');
     return r;
@@ -39,6 +47,13 @@ export function constTime<T>(debugName: string = 'func') {
       let result: T | undefined | Error;
       const startTime = Date.now();
 
+      // we don't want stuff to get stuck, controversial?
+      // if (fixedTime > 2000) {
+      //   if (crypto.randomBytes(1).readUInt8(0) % 10 > 5) {
+      //     fixedTime = (crypto.randomBytes(1).readUInt8(0) % 10) * 1000; // between 0 and 9000
+      //     console.log(`[fixed-time]: updated fixed-time: ${fixedTime} `);
+      //   }
+      // }
       try {
         result = await f();
       } catch (e) {
@@ -100,7 +115,7 @@ export function cachedData<T>(debugName: string = 'func', ms: number) {
           date = undefined;
         }
       }
-      f().then(r => {
+      f().then((r) => {
         if (r === undefined) {
           reject(new Error('cached func: ' + debugName + ' cant return undefined'));
           return;
@@ -156,7 +171,7 @@ export function DataLimiter<T>(debugName: string = 'func', maxCount: number, tim
         return;
       }
 
-      f().then(r => {
+      f().then((r) => {
         if (r === undefined) {
           reject(
             new Error('Data limited function (nested in a const time func): ' + debugName + ' cant return undefined')
@@ -173,5 +188,5 @@ export function DataLimiter<T>(debugName: string = 'func', maxCount: number, tim
 }
 
 function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -16,7 +16,7 @@ export default class BlockWatcher extends EventEmitter {
           bestBlock = info.blocks;
         }
       }
-    })().catch(async err => {
+    })().catch(async (err) => {
       // TODO: how to handle errors?
       console.error('[INTERNAL_ERROR] block watcher caught an error: ', err);
 

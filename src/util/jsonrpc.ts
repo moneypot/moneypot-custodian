@@ -29,12 +29,12 @@ export default class JSONRpcClient {
         headers: headers,
       };
       var buf = '';
-      var req = http.request(options, function(res) {
+      var req = http.request(options, function (res) {
         res.setEncoding('utf8');
-        res.on('data', function(chunk: string) {
+        res.on('data', function (chunk: string) {
           buf += chunk;
         });
-        res.on('end', function() {
+        res.on('end', function () {
           if (buf.length === 0) {
             reject(new Error('got no response'));
             return;
@@ -55,11 +55,11 @@ export default class JSONRpcClient {
             resolve(decoded.result);
           }
         });
-        res.on('error', function(err: any) {
+        res.on('error', function (err: any) {
           reject(new Error(err));
         });
       });
-      req.on('error', function(err: any) {
+      req.on('error', function (err: any) {
         reject(new Error(err));
       });
       req.write(requestJSON);

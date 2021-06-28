@@ -27,7 +27,7 @@ export interface Selection {
   miningSacrifice: number;
 }
 
-const agent = useTor ? new SocksProxyAgent("socks5://127.0.1:9050") : undefined
+const agent = useTor ? new SocksProxyAgent('socks5://127.0.1:9050') : undefined;
 
 export function req(p: Problem): Promise<Selection | Error> {
   return new Promise((resolve, reject) => {
@@ -38,15 +38,15 @@ export function req(p: Problem): Promise<Selection | Error> {
       headers: {
         'Content-Type': 'application/json',
       },
-      agent
+      agent,
     };
 
-    const req = https.request(options, res => {
+    const req = https.request(options, (res) => {
       res.setEncoding('utf8');
 
       let body = '';
 
-      res.on('data', chunk => {
+      res.on('data', (chunk) => {
         body += chunk;
       });
       res.on('end', () => {

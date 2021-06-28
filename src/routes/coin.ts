@@ -1,7 +1,7 @@
 import * as hi from 'moneypot-lib';
 import { pool } from '../db/util';
 
-export default async function(url: string) {
+export default async function (url: string) {
   const owner = url.substring('/coin/'.length);
 
   const o = hi.PublicKey.fromPOD(owner);

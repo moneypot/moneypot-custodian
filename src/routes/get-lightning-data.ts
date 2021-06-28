@@ -27,11 +27,13 @@ export async function getLightningData(): Promise<Error | LND> {
       capacity: balance.capacity,
     });
   }
-  const highest_inbound = Math.max(...balances.map(o => {
+  const highest_inbound = Math.max(
+    ...balances.map((o) => {
       return o.remote_balance;
     })
   );
-  const highest_outbound = Math.max(...balances.map(o => {
+  const highest_outbound = Math.max(
+    ...balances.map((o) => {
       return o.local_balance;
     })
   );
@@ -49,7 +51,7 @@ export async function getLightningData(): Promise<Error | LND> {
     ...b,
     highest_inbound,
     highest_outbound,
-    identity_pubkey ,
+    identity_pubkey,
     num_channels: channels.channels.length,
   } as LND;
 }

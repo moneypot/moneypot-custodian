@@ -17,7 +17,7 @@ export default async function claim(body: any) {
 
   const claimHash = claimRequest.claimableHash.toPOD();
 
-  return withTransaction(async client => {
+  return withTransaction(async (client) => {
     let claimable;
 
     {
@@ -58,7 +58,7 @@ export default async function claim(body: any) {
 
     const { coinRequests } = claimRequest;
 
-    const blindingNonces = coinRequests.map(coin => coin.blindingNonce.toPOD());
+    const blindingNonces = coinRequests.map((coin) => coin.blindingNonce.toPOD());
 
     const secretNonces = nonceLookup.pull(blindingNonces);
 

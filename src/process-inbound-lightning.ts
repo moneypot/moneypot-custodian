@@ -11,7 +11,7 @@ export default async function processInboundLightning() {
 
     console.log('Going to subscribe to invoices. Highest processed is: ', lastSettleIndex);
 
-    await lightning.subscribeSettledInvoices(lastSettleIndex, async lndInvoice => {
+    await lightning.subscribeSettledInvoices(lastSettleIndex, async (lndInvoice) => {
       const { rows } = await db.pool.query(
         `SELECT claimable->>'hash' as hash FROM claimables
           WHERE claimable->>'kind' = 'LightningInvoice' AND claimable->>'paymentRequest' = $1`,

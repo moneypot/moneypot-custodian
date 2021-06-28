@@ -39,7 +39,7 @@ const custodianInfo = new hi.CustodianInfo(
   ackSecretKey.toPublicKey(),
   currency,
   fundingSecretKey.toPublicKey(),
-  blindingSecretKeys.map(bs => bs.toPublicKey()),
+  blindingSecretKeys.map((bs) => bs.toPublicKey()),
   wipeDate.toISOString()
 );
 

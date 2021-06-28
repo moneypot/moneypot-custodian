@@ -9,7 +9,7 @@ type feeInterface = {
 };
 
 // return as an error type, because this goes directly to the client.
-export default async function(): Promise<feeInterface | Error> {
+export default async function (): Promise<feeInterface | Error> {
   const consolidationFeeRate = await rpcClient.getConsolidationFeeRate();
   const immediateFeeRate = await rpcClient.getImmediateFeeRate();
   if (typeof consolidationFeeRate != 'number' || typeof immediateFeeRate != 'number') {

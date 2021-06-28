@@ -1,6 +1,6 @@
 import * as nonces from '../util/nonces';
 
-export default async function(n: any) {
+export default async function (n: any) {
   if (typeof n !== 'number') {
     throw 'expected an int for a body';
   }

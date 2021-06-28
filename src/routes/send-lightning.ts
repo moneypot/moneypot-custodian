@@ -34,7 +34,7 @@ export default async function sendLightning(payment: hi.LightningPayment) {
 
   if (isNew) {
     // we send here in the background
-    sendPayment(payment).catch(err => {
+    sendPayment(payment).catch((err) => {
       console.error('[INTERNAL_ERROR] when sending lightning in the background: ', err);
     });
   }
@@ -44,7 +44,7 @@ export default async function sendLightning(payment: hi.LightningPayment) {
 
 async function sendPayment(payment: hi.LightningPayment) {
   // First we are going to check if it's an internal send
-  const internalRes = await withTransaction(async client => {
+  const internalRes = await withTransaction(async (client) => {
     // we just use FOR UPDATE as a poor mans lock
     const { rows } = await client.query(
       `

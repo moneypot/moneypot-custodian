@@ -54,7 +54,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
           break;
         case 'p2tr':
           expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2trTransactionWeight);
-          break;  
+          break;
       }
       break;
     case 'BATCH':
@@ -70,7 +70,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
           break;
         case 'p2wpkh':
           expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2wpkh);
-          break;    
+          break;
         case 'p2tr':
           expectedFee = Math.ceil(feeSchedule.immediateFeeRate * config.p2tr);
           break;
@@ -111,13 +111,29 @@ export default async function sendHookout(hookout: hi.Hookout) {
     // actually send...
     // If we're going to send right now, lets get some others...
     if (hookout.priority === 'IMMEDIATE' || hookout.priority === 'CUSTOM' || hookout.priority === 'FREE') {
-      await withTransaction(async dbClient => {
+      await withTransaction(async (dbClient) => {
         let otherHookouts: hi.Hookout[] = [];
         // Batched can never fail, (free can fail only if the custodian crashes and it is the initiator...?)
+
+        //   // we need to lock first
+        //  const x =  await dbClient.query(
+        //     `SELECT claimable FROM claimables WHERE claimable->>'kind' = 'Hookout' AND claimable->>'priority' = $1 AND (claimable->>'hash') != $2
+        //     AND (claimable->>'hash') NOT IN (SELECT (status->>'claimableHash') FROM statuses WHERE (status->>'kind' = 'BitcoinTransactionSent' OR status->>'kind' = 'Failed'))
+        //     FOR UPDATE
+        //   `,
+        //     [
+        //       hookout.priority === 'IMMEDIATE' ? 'BATCH' : hookout.priority === 'FREE' ? 'FREE' : undefined,
+        //       hookout.toPOD().hash,
+        //     ]
+        //   );
+
+        //   console.log(x.rows, 'first call')
+
+        // call again
         const queryRes = await dbClient.query(
-          `SELECT claimable FROM claimables WHERE claimable->>'kind' = 'Hookout'
-          AND claimable->>'priority' = $1 AND (claimable->>'hash') != $2 AND (claimable->>'hash') NOT IN (SELECT (status->>'claimableHash') FROM statuses WHERE (status->>'kind' = 'BitcoinTransactionSent' OR status->>'kind' = 'Failed')) 
-           FOR UPDATE
+          `SELECT claimable FROM claimables WHERE claimable->>'kind' = 'Hookout' AND claimable->>'priority' = $1 AND (claimable->>'hash') != $2
+          AND (claimable->>'hash') NOT IN (SELECT (status->>'claimableHash') FROM statuses WHERE (status->>'kind' = 'BitcoinTransactionSent' OR status->>'kind' = 'Failed'))
+         FOR UPDATE
         `,
           [
             hookout.priority === 'IMMEDIATE' ? 'BATCH' : hookout.priority === 'FREE' ? 'FREE' : undefined,
@@ -135,23 +151,22 @@ export default async function sendHookout(hookout: hi.Hookout) {
 
         // remove this ugly function
         // TODO: query stuck custom/immediate tx in case of uncatched errors?!
-        const calcCustom = (addressType: string) => { 
-          switch(addressType) { 
-            case 'p2wpkh': 
+        const calcCustom = (addressType: string) => {
+          switch (addressType) {
+            case 'p2wpkh':
               return hookout.fee / config.p2wpkhTransactionWeight;
             case 'legacy':
               return hookout.fee / config.p2pkhTransactionWeight;
-            case 'p2sh': 
+            case 'p2sh':
               return hookout.fee / config.p2shp2wpkhTransactionWeight;
-            case 'p2wsh': 
+            case 'p2wsh':
               return hookout.fee / config.p2wshTransactionWeight;
-            case 'p2tr': 
+            case 'p2tr':
               return hookout.fee / config.p2trTransactionWeight;
             default:
-                throw new Error('unexpected type');
+              throw new Error('unexpected type');
           }
-        }
-
+        };
 
         if (hookout.priority !== 'BATCH') {
           const noChange = hookout.priority === 'FREE';
@@ -186,7 +201,7 @@ export default async function sendHookout(hookout: hi.Hookout) {
               'could not create the transaction, to: ',
               {
                 hookout: hookout.toPOD(),
-                otherHookouts: otherHookouts.map(h => h.toPOD),
+                otherHookouts: otherHookouts.map((h) => h.toPOD),
                 feeRate: feeSchedule.immediateFeeRate,
                 noChange,
               },

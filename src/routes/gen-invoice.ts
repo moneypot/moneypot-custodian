@@ -24,7 +24,10 @@ export default async function genInvoice(body: any) {
     throw 'expected an natural number for amount';
   }
 
-  const res = await db.pool.query(`SELECT claimable FROM claimables WHERE claimable->>'kind'='LightningInvoice' AND claimable->>'claimant' = $1`, [claimant.toPOD()]);
+  const res = await db.pool.query(
+    `SELECT claimable FROM claimables WHERE claimable->>'kind'='LightningInvoice' AND claimable->>'claimant' = $1`,
+    [claimant.toPOD()]
+  );
 
   if (res.rows.length === 1) {
     throw 'we already have an invoice for this claimant!';
@@ -49,7 +52,7 @@ export default async function genInvoice(body: any) {
   return pod;
 }
 
-(async function() {
+(async function () {
   const pub = hi.PrivateKey.fromRand().toPublicKey();
 
   const details = { claimant: pub.toPOD(), memo: 'autogen', amount: Math.floor(Math.random() * 50000) };

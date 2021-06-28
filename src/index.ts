@@ -55,16 +55,16 @@ if (process.env.PORT) {
 }
 
 // finalize hookins on startup.
-finalizeHookins().catch(err => {
+finalizeHookins().catch((err) => {
   console.error('INTERNAL_ERROR caught process Finalizing hookins error: ', err);
 });
 
-processInboundLightning().catch(err => {
+processInboundLightning().catch((err) => {
   console.error('INTERNAL_ERROR caught process inbound lightning error: ', err);
 });
 
 // Finalize lightning payments (only after crashing!)
-finalizeLightningPayments().catch(err => {
+finalizeLightningPayments().catch((err) => {
   console.error('INTERNAL_ERROR caught process Finalizing hookins error: ', err);
 });
 
