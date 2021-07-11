@@ -95,6 +95,9 @@ export async function insertTransfer(transfer: hi.LightningPayment | hi.Hookout 
         // if (err.code === '23505' && err.constraint === 'transfer_inputs_pkey') {
         //   return 'DOUBLE_SPEND';
         // }
+        console.log(
+          `[transfer issue]: ${err} when inserting input ${owner} and claimable ${ackdClaimble.toPOD().hash}`
+        );
         throw err;
       }
     }

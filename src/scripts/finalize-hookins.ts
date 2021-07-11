@@ -2,7 +2,7 @@ import * as hi from 'moneypot-lib';
 import { pool } from '../db/util';
 import processHookin from '../util/process-hookin';
 
-export default async function run() {
+export default async function () {
   console.log('running query');
   const { rows } = await pool.query(`
         SELECT * FROM claimables WHERE claimable->>'kind'='Hookin'
@@ -18,10 +18,8 @@ export default async function run() {
     }
 
     console.log('trying to finalize: ', hookin.hash().toPOD());
-    await processHookin(hookin);
+    await processHookin(hookin); // ?
   }
 
   console.log('Finalization done!');
 }
-
-run();

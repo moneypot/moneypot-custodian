@@ -11,7 +11,7 @@ interface inputs {
   vout: number;
 }
 
-async function run() {
+export default async function () {
   const unspent = await rpcClient.listUnspent();
   let compFee = await rpcClient.getImmediateFeeRate();
   const consFee = await rpcClient.getConsolidationFeeRate();
@@ -104,5 +104,3 @@ VALUES($1)
   );
   console.log(`Transaction has been sent! [txid]:[${z}]`);
 }
-
-run();

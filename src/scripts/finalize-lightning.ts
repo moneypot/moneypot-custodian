@@ -9,10 +9,9 @@ import StatusFailed from 'moneypot-lib/dist/status/failed';
 import LightningPaymentSent from 'moneypot-lib/dist/status/lightning-payment-sent';
 
 // if LND has crashed and people try to send LND payments -- this does not handle edge-cases.. TODO
-export default async function run() {
-  console.log('running query');
-  const getClaimables =
-    await pool.query(`SELECT claimable FROM claimables WHERE claimable->>'kind' = 'LightningPayment' 
+export default async function () {
+  console.log('running query lightning finalize');
+  const getClaimables = await pool.query(`SELECT claimable FROM claimables WHERE claimable->>'kind' = 'LightningPayment' 
     AND (claimable->>'hash') NOT IN (SELECT (status->>'claimableHash') FROM statuses WHERE (status->>'kind' = 'LightningPaymentSent' OR status->>'kind' = 'Failed'))
     `);
   const listPayments = await lightning.getListedPayments(); // catch this?!
@@ -45,5 +44,3 @@ export default async function run() {
     }
   }
 }
-
-run();

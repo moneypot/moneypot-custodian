@@ -9,8 +9,8 @@ import * as rpcClient from '../util/rpc-client';
 let Received: number[] = []; // individual hookin fees (consolidationfees)  + individual hookout fees
 let Spent: number[] = [];
 
-async function run() {
-  console.log('running query');
+export default async function () {
+  console.log('running query calculate feebalance');
   const getClaimables = await pool.query(`SELECT claimable FROM claimables`);
   for (const c of getClaimables.rows) {
     const b: hi.POD.Claimable = c.claimable;
@@ -78,5 +78,3 @@ async function run() {
     ).toFixed(8)} btc`
   );
 }
-
-run();

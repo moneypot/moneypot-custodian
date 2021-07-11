@@ -4,7 +4,7 @@ import * as rpcClient from '../util/rpc-client';
 import ci, { fundingSecretKey, ackSecretKey } from '../custodian-info';
 import processHookin from '../util/process-hookin';
 
-import { pool } from '../db/util';
+import { pool, withTransaction } from '../db/util';
 import * as config from '../config';
 
 // body should be { hookin, claimRequest }
@@ -33,10 +33,21 @@ export default async function addHookin(hookin: hi.Hookin): Promise<R> {
 
   const ackdClaimablePOD = ackdClaimable.toPOD() as R;
 
-  await pool.query(`INSERT INTO claimables(claimable) VALUES($1) ON CONFLICT DO NOTHING`, [ackdClaimablePOD]);
+  // make a transaction even though every hookin is deterministically derived from its parameters and thus a double insert won't necessarily harm as it would conflict - we prevent double process queries etc, just a bit cleaner
+  // for example: double processHookins will cause strictEquals to fail on status inserts @ status.ts #19 as status would already be inserted - conflict .
 
-  // process in the background...
-  processHookin(hookin);
+  // we don't need to wait, if the hookin is new we can immediately return, if it is not we just return old ack.
+  withTransaction(async (client) => {
+    const res = await client.query(`SELECT claimable FROM claimables WHERE claimable->>'hash' = $1`, [
+      ackdClaimablePOD.hash,
+    ]);
+
+    if (res.rowCount === 0) {
+      await client.query(`INSERT INTO claimables(claimable) VALUES($1) ON CONFLICT DO NOTHING`, [ackdClaimablePOD]);
+      // process in the background...
+      processHookin(hookin);
+    }
+  });
 
   return ackdClaimablePOD;
 }

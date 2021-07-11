@@ -20,11 +20,12 @@ export async function withTransaction<T>(f: (client: PoolClient) => Promise<T>):
 
   try {
     await client.query('BEGIN');
-    // FOR UPDATE is useless when we do this
+    // FOR UPDATE is useless when we do this, also we really only need to lock one table logically but might change table locks to specific txs in the future.
     await client.query('LOCK TABLE claimables IN ACCESS EXCLUSIVE MODE');
-    await client.query('LOCK TABLE transfer_inputs IN ACCESS EXCLUSIVE MODE');
 
-    await client.query('LOCK TABLE statuses IN ACCESS EXCLUSIVE MODE'); // don't think this one is necessary
+    // not necessary
+    await client.query('LOCK TABLE transfer_inputs IN ACCESS EXCLUSIVE MODE');
+    await client.query('LOCK TABLE statuses IN ACCESS EXCLUSIVE MODE');
 
     const r = await f(client);
     await client.query('COMMIT');
