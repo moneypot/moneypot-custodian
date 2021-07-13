@@ -13,6 +13,8 @@ import * as config from '../config';
 
 let blockWatcher = new BlockWatcher();
 
+// sometimes not processed upon new block? only encountered this error once so far?! need to investigate function further
+
 export default async function processHookin(hookin: hi.Hookin) {
   await importHookin(hookin);
 
