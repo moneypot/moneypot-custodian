@@ -10,7 +10,14 @@ export default class BlockWatcher extends EventEmitter {
     (async () => {
       let bestBlock = 0;
       while (true) {
-        const info = await rpcClient.getBlockChainInfo();
+        let info;
+        // continue itself on connection err when we use a try block..? connection err seems to occur randomly once in a while, in that case we should not catch the entire func
+        try {
+          info = await rpcClient.getBlockChainInfo();
+        } catch (error) {
+          console.log('[INTERNAL ERROR],', error, 'caught in try')
+          continue
+        }
         if (info.blocks > bestBlock) {
           this.emit('NEW_BLOCK');
           bestBlock = info.blocks;
@@ -18,28 +25,7 @@ export default class BlockWatcher extends EventEmitter {
       }
     })().catch(async (err) => {
       // TODO: how to handle errors?
-      console.error('[INTERNAL_ERROR] block watcher caught an error: ', err);
-
-      // TODO: do these get garbage collected or is this causing a memory leak? TODO.
-      const isRunning = await isProcessRunning('bitcoind');
-      if (!isRunning) {
-        let i: boolean;
-        try {
-          i = await startDaemon('bitcoind // MORE COMMANDS HERE if bitcoin conf is not set. // ');
-        } catch (e) {
-          i = false;
-        }
-        if (i) {
-          new BlockWatcher();
-        } else {
-          console.error('[INTERNAL_ERROR] [MANUAL INTERVENTION NEEEDED] Err: Cannot start bitcoind');
-        }
-      } else if (isRunning) {
-        // might still be loading in, restart blockwatcher.
-        setTimeout(() => {
-          new BlockWatcher();
-        }, 60000);
-      }
+      console.error('[INTERNAL_ERROR] block watcher caught an error outside of calling for a block: ', err);
     });
   }
 }

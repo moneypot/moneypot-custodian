@@ -10,9 +10,9 @@ import BlockWatcher from './block-watcher';
 import { addressType } from './rpc-client';
 import { pool } from '../db/util';
 import * as config from '../config';
+import { api } from './api-request';
 
 let blockWatcher = new BlockWatcher();
-
 // sometimes not processed upon new block? only encountered this error once so far?! need to investigate function further
 
 export default async function processHookin(hookin: hi.Hookin) {
@@ -28,10 +28,27 @@ export default async function processHookin(hookin: hi.Hookin) {
     if (!txinfo) {
       const rawtransaction = await rpcClient.getRawTransaction(txid, undefined, true);
       if (typeof rawtransaction === 'string' || rawtransaction instanceof Error) {
-        console.log('[warn] could not find txout for ', txid, ':', hookin.vout, ' .. so ignoring');
-        return; // does not exist anymore, possible doublespend or whatever.
+        console.log('[warn] could not find txout for ', txid, ':', hookin.vout, ' .. so ignoring for this block');
+        let exists;
+        try { 
+          exists = await api("www.moneypot.com", `/${config.network === "testnet" ? 'api/testnet/tx' : 'api/tx' }/${txid}`)
+        } catch (e) {
+          exists = new Error(e)
+        }
+        if (!exists || exists instanceof Error) { 
+          console.log('[prc-hk]: did not find txid on blockexplorer, continue', hookin.txid)
+          return; // definitely does not exist anymore, possible doublespend or whatever.
+        }
+
+        // TODO: perhaps just recheck the hookin automatically?
+        if (exists) { 
+          console.log('[MANUAL INTERVENTION REQUIRED] [prc-hk]: found txid on blockexpl but is missing locally', exists, hookin.txid)
+          return;
+        }
+
       }
-      if (rawtransaction) {
+      // if (rawtransaction instance rawTx)
+      if (rawtransaction instanceof Object && !(rawtransaction instanceof Error)) {
         for (const i of rawtransaction.vout) {
           // really, the only thing we need to check is if it exists, and has confirmations, but i guess this doesn't hurt.
           if (i.n === hookin.vout) {
@@ -55,15 +72,14 @@ export default async function processHookin(hookin: hi.Hookin) {
     }
 
     // TODO: handle not found..
-
-    // TODO: process.env dust fees?
+    // TODO: allow users to readd their hookin for recheck if for example it dropped out of the mempool but was readded?
 
     // TODO: add p2tr deposit
 
     if (txinfo.amount >= 1e8) {
       if (txinfo.confirmations >= 6) {
         const getFee = async (txinfo: any) => {
-          return txinfo.address === null ? 500 : addressType(txinfo.address) === 'p2wpkh' ? 100 : 500;
+          return txinfo.address === null ? 0 : addressType(txinfo.address) === 'p2wpkh' ? 0 : 0;
         };
         // const consolidationFee = 100; // todo: something saner
         await insertStatus(new HookinAccepted(hookin.hash(), await getFee(txinfo)));
@@ -75,7 +91,7 @@ export default async function processHookin(hookin: hi.Hookin) {
       if (txinfo.confirmations >= 1) {
         const getFee = async (txinfo: any) => {
           // ?
-          return txinfo.address === null ? 5000 : addressType(txinfo.address) === 'p2wpkh' ? 1000 : 5000;
+          return txinfo.address === null ? 0 : addressType(txinfo.address) === 'p2wpkh' ? 0 : 0;
         };
         await insertStatus(new HookinAccepted(hookin.hash(), await getFee(txinfo)));
         return;
@@ -86,7 +102,7 @@ export default async function processHookin(hookin: hi.Hookin) {
     if (1e6 >= txinfo.amount) {
       let confirmations = 1;
       const getFee = (txinfo: any) => {
-        return txinfo.address === null ? 5000 : addressType(txinfo.address) === 'p2wpkh' ? 1000 : 5000;
+        return txinfo.address === null ? 500 : addressType(txinfo.address) === 'p2wpkh' ? 100 : 500;
       };
 
       if (txinfo.confirmations >= confirmations) {

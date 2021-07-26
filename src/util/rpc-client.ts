@@ -157,9 +157,17 @@ export async function getTransaction(txid: string) {
 export async function getTxOut(txid: string, vout: number) {
   assert(Number.isSafeInteger(vout) && vout >= 0);
 
-  const txOutInfo = await jsonClient.call('gettxout', { txid, n: vout });
+  let txOutInfo;
+  try {
+    txOutInfo = await jsonClient.call('gettxout', { txid, n: vout });
+  } catch (error) {
+    console.log('[gto]: erorr,', error, 'returning undefined')
+    txOutInfo = undefined // can make a new error, lazy.
+  }
+
+  // can we return empty besides error? 
   if (!txOutInfo) {
-    return undefined;
+    return undefined; // txOutInfo itself is undefined
   }
 
   return {

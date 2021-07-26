@@ -1,33 +1,52 @@
-import https from 'https';
-// import { BlockCyperApiToken } from '../config';
+import * as https from 'https';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { useTor } from '../config';
 
-interface TXQuery {
-  age_millis: number;
-  receive_count: number;
-  confidence: number;
-  txhash: string;
-  txurl: string;
-}
-let BlockCyperApiToken = '';
+const agent = useTor ? new SocksProxyAgent('socks5://127.0.0.1:9050') : undefined;
 
-// `https://api.blockcypher.com/v1/btc/test3?token=${BlockToken}/txs/${txid}/confidence`
 
-export function getApi(type?: string, value?: string, command?: string): Promise<TXQuery | Error> {
+// copy paste from coinsayer
+export function api(h: string, path: string): Promise<any | Error> {
   return new Promise((resolve, reject) => {
-    const request = https.get(
-      `https://api.blockcypher.com/v1/btc/test3?token=${BlockCyperApiToken}/${type}}/${value}/${command}`,
-      {},
-      (response) => {
-        if (response.statusCode) {
-          if (response.statusCode < 200 || response.statusCode > 299) {
-            reject(new Error('Failed to load page' + response.statusCode));
-          }
+    const options = {
+      hostname: h, 
+      path,
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      agent,
+    };
+
+    const req = https.request(options, (res) => {
+      res.setEncoding('utf8');
+
+      let body = '';
+
+      res.on('data', (chunk) => {
+        body += chunk;
+      });
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          console.error('api error, body: ', body);
+          reject(new Error('status not 200'));
+          return;
         }
-        let d = '';
-        response.on('data', (c) => (d += c));
-        response.on('end', () => resolve(JSON.parse(d)));
-      }
-    );
-    request.on('error', (err) => reject(err.message));
+
+        let obj;
+        try {
+          obj = JSON.parse(body);
+        } catch (err) {
+          reject(body);
+          return;
+        }
+        resolve(obj);
+      });
+    });
+
+    req.on('error', reject);
+
+    //req.write(JSON.stringify(h));
+    req.end();
   });
 }

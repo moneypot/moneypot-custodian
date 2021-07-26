@@ -43,7 +43,7 @@ const server = http.createServer(async (req, res) => {
   const end = Date.now();
 
   if (!isProd) {
-    console.log(`<-- ${req.method} ${req.url} req=${reqCount} status=${res.statusCode} time=${end - start}ms`);
+    console.log(`<-- ${req.method} ${req.url} req=${reqCount} status=${res.statusCode} time=${end - start}ms date="${new Date().toISOString()}"`);
   }
 
   res.end(r);

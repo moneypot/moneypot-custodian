@@ -94,9 +94,18 @@ export default async function sendHookout(hookout: hi.Hookout) {
   }
 
   // TODO: allow for a range of N satoshis so as to account for time
+
+  // Like this?
   if (hookout.fee !== expectedFee) {
     console.warn('Got fee of: ', hookout.fee, ' but expected: ', expectedFee);
-    throw 'WRONG_FEE_RATE';
+    if (hookout.fee > (expectedFee + Math.round(expectedFee / 10))) { 
+      console.warn('included too much fee:', (hookout.fee - (expectedFee + Math.round(expectedFee / 10))), 'retry required');
+      throw 'WRONG_FEE_RATE';
+    }
+    if (hookout.fee < (expectedFee - Math.round(expectedFee / 10)) )  {
+      console.warn('included too little fee: missing', (expectedFee - Math.round(expectedFee / 10) - hookout.fee));
+      throw 'WRONG_FEE_RATE'
+    }
   }
 
   const hookoutHash = hookout.hash();
