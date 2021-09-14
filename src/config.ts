@@ -6,8 +6,6 @@ export const bNetwork: boolean = process.env.CURRENCY === 'tBTC' ? true : false;
 export const hasCoinsayer: boolean = process.env.COINSAYER === 'false' ? false : true; // assume true
 
 export const useTor: boolean = true;
-// export const has0conf: boolean = false; // only enable if you know what you're doing
-// export const BlockCyperApiToken = 'AnyTokenHere';
 
 // All inputs are assumed native.
 export const inputWeight = 68 * 4;

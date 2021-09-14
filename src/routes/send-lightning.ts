@@ -75,6 +75,7 @@ async function sendPayment(payment: hi.LightningPayment) {
       return new Error('INVOICE_ALREADY_PAID');
     }
 
+    // if you can't cancel, it probably means it was paid on-chain inbetween when this request was initiated and the db lookup finished..? 
     const cancelErr = await lightning.cancelInvoiceByPaymentRequest(payment.paymentRequest);
     if (cancelErr) {
       console.warn('warning: could not cancel invoice, got: ', cancelErr);

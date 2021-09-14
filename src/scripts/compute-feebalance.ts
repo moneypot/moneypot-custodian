@@ -9,7 +9,8 @@ import * as rpcClient from '../util/rpc-client';
 let Received: number[] = []; // individual hookin fees (consolidationfees)  + individual hookout fees
 let Spent: number[] = [];
 
-export default async function () {
+// note: please pass variables in run
+(async function () {
   console.log('running query calculate feebalance');
   const getClaimables = await pool.query(`SELECT claimable FROM claimables`);
   for (const c of getClaimables.rows) {
@@ -24,7 +25,7 @@ export default async function () {
         break;
       }
       case 'LightningPayment': {
-        // see transactionSent, this is zero-sum though.
+        // see transactionSent, this is assumed zero-sum though, unless internal.
         break;
       }
       case 'LightningInvoice': {
@@ -72,9 +73,9 @@ export default async function () {
   const y = Spent.reduce((a, b) => a + b, 0);
 
   console.log(
-    `Calculation done! You've spent ${-y} sat on fees, and received ${z} sat, this brings the net @ ${y + z} or ${(
+    `Calculation done! You've spent ${-y} sat on fees, and received ${z} sat, this brings the net @ ${y + z} sats or ${(
       (y + z) /
       1e8
     ).toFixed(8)} btc`
   );
-}
+} ())

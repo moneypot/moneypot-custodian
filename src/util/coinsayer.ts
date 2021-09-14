@@ -27,7 +27,7 @@ export interface Selection {
   miningSacrifice: number;
 }
 
-const agent = useTor ? new SocksProxyAgent('socks5://127.0.1:9050') : undefined;
+const agent = useTor ? new SocksProxyAgent('socks5://127.0.0.1:9050') : undefined;
 
 export function req(p: Problem): Promise<Selection | Error> {
   return new Promise((resolve, reject) => {

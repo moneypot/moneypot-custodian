@@ -8,6 +8,22 @@ import * as config from '../config';
 
 //let jsonClient = new JSONRpcClient('127.0.0.1', 18332, 'testnetdev', 'l5JwLwtAXnaF');
 // ip is not process.env'd. change manually
+
+
+// - - The following RPCs:  `gettxout`, `getrawtransaction`, `decoderawtransaction`,
+//   `decodescript`, `gettransaction`, and REST endpoints: `/rest/tx`,
+//   `/rest/getutxos`, `/rest/block` deprecated the following fields (which are no
+//   longer returned in the responses by default): `addresses`, `reqSigs`.
+//   The `-deprecatedrpc=addresses` flag must be passed for these fields to be
+//   included in the RPC response. This flag/option will be available only for this major release, after which
+//   the deprecation will be removed entirely. Note that these fields are attributes of
+//   the `scriptPubKey` object returned in the RPC response. However, in the response
+//   of `decodescript` these fields are top-level attributes, and included again as attributes
+//   of the `scriptPubKey` object. (#20286)
+
+// So addresses = address and no longer an index? TODO might need to update further.. 
+
+
 export let jsonClient = new JSONRpcClient(
   '127.0.0.1',
   process.env.CURRENCY! === 'tBTC' ? 18332 : 8332,
@@ -65,7 +81,7 @@ interface ScriptPubKey {
   hex: string;
   reqSigs: number;
   type: string;
-  addresses: string[];
+  address: string;
 }
 
 interface Vout {
@@ -169,12 +185,11 @@ export async function getTxOut(txid: string, vout: number) {
   if (!txOutInfo) {
     return undefined; // txOutInfo itself is undefined
   }
-
   return {
     bestBlock: txOutInfo.bestblock as string,
     confirmations: txOutInfo.confirmations as number,
     amount: Math.round(txOutInfo.value * 1e8),
-    address: txOutInfo.scriptPubKey.addresses.length === 1 ? (txOutInfo.scriptPubKey.addresses[0] as string) : null,
+    address: txOutInfo.scriptPubKey.address ? txOutInfo.scriptPubKey.address : null,
   };
 }
 
@@ -213,7 +228,7 @@ type DecodeTransactionResult = {
       hex: string;
       reqSigs: number;
       type: string;
-      addresses: string[];
+      address: string;
     };
   }[];
 };
@@ -245,7 +260,7 @@ export async function getTxOutFromWalletTx(txid: string, vout: number) {
 
   return {
     amount,
-    address: output.scriptPubKey.addresses.length === 1 ? output.scriptPubKey.addresses[0] : null,
+    address: output.scriptPubKey.address,
     confirmations: txinfo.confirmations,
   };
 }
@@ -552,15 +567,29 @@ export async function createSmartTransaction(
 
   // let's allow for only 1 sat difference at most between the claimed amount and the actual send amount, we do this because of integer $hit. TODO
   if (editRes.changeAmount != 0) {
+    // this is the fee when we use WU instead of rounded vbytes
     const newFee = feeRate * editRes.weight;
 
-    const respFee = editRes.miningFee - editRes.changeAmount;
-    editRes.changeAmount = Math.floor(editRes.changeAmount + respFee - newFee);
+    // miningFee = remainder of inputs not included in outputs (change/fees)
+    // const respFee = editRes.miningFee - editRes.changeAmount;
+    // miningfee - changeamount = fees
+    // editRes.changeAmount = Math.floor(editRes.changeAmount + respFee - newFee);
+    editRes.changeAmount = Math.floor(editRes.miningFee - newFee);
+    // add back the old fee to the change amount 
+
   }
 
   const res = editRes;
 
   console.log('got coinsayer result: ', res);
+
+  // TODO: only encountered this once
+
+  // hotfix - coinsayer can give a valid response without sending out initiating tx.
+  // doesn't necessarily have to be a problem but to keep some kind of logic fail this.
+  if (!res.outputs.includes('dest')) { 
+    return new Error('[INTERNAL ERROR]: Coinsayer did not give a valid response. Please retry in a couple minutes!')
+  }
 
   if (noChange) {
     if (res.changeAmount !== 0) {
@@ -644,6 +673,8 @@ export async function createSmartTransaction(
 
 // a placeholder for custodians that do not have access to in-house coin selection algorithms/tools that follow Coinsayer's standard.
 // NOTE: This will spend unconfirmed change inputs unless spendzeroconfchange=0
+
+// TODO: don't use this without testing. not supported
 export async function createNormalTransaction(
   to: hi.Hookout,
   optionals: hi.Hookout[],

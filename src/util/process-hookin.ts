@@ -27,6 +27,7 @@ export default async function processHookin(hookin: hi.Hookin) {
     // ok, the input has already been accepted, so we only need to make sure it actually exists somewhere. (not double-spent)
     if (!txinfo) {
       const rawtransaction = await rpcClient.getRawTransaction(txid, undefined, true);
+      // cannot be a string
       if (typeof rawtransaction === 'string' || rawtransaction instanceof Error) {
         console.log('[warn] could not find txout for ', txid, ':', hookin.vout, ' .. so ignoring for this block');
         let exists;
@@ -59,7 +60,7 @@ export default async function processHookin(hookin: hi.Hookin) {
                 bestBlock: '',
                 confirmations: rawtransaction.confirmations,
                 amount: p,
-                address: i.scriptPubKey.addresses.length === 1 ? i.scriptPubKey.addresses[0] : null,
+                address: i.scriptPubKey.address,
               };
             }
           }

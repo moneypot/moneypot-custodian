@@ -1,6 +1,6 @@
 import * as hi from 'moneypot-lib';
 import * as lightning from '../lightning/index';
-import { ackSecretKey } from '../custodian-info';
+import custodianInfo, { ackSecretKey } from '../custodian-info';
 import { withTransaction } from '../db/util';
 
 export default async function genInvoice(body: any) {
@@ -21,6 +21,12 @@ export default async function genInvoice(body: any) {
   const amount = body.amount;
   if (typeof amount !== 'number' || amount < 0 || !Number.isSafeInteger(amount)) {
     throw 'expected an natural number for amount';
+  }
+
+  if (custodianInfo.wipeDate) { 
+    if (new Date(custodianInfo.wipeDate) < new Date(Date.now() + 48 * 60 * 60 * 3600)) { 
+      throw "wiping in less than 2 days. Please don't deposit more funds."
+    }
   }
 
   // we also need a transaction here, else two invoices with the same claimant could be generated, but only one can be recovered.

@@ -1,6 +1,7 @@
 import { Pool, PoolClient, types } from 'pg';
 import http from 'http';
 // import crypto from 'crypto';
+import { api } from '../util/api-request';
 
 types.setTypeParser(20, function (val) {
   return parseInt(val);
@@ -40,6 +41,38 @@ export async function withTransaction<T>(f: (client: PoolClient) => Promise<T>):
   }
 }
 
+type P = {Address: string, Fingerprint: string}[]
+
+let ips: undefined | P; 
+if (!ips) { 
+  api("check.torproject.org", "/api/bulk?ip=1.1.1.1").then(d => ips = d)
+
+  setInterval(async () => {
+    ips = await api("check.torproject.org", "/api/bulk?ip=1.1.1.1")
+    }, 6000 * 60);
+  }
+
+
+export function ipCheckConst(req: http.IncomingMessage)  {
+  if (!ips) { 
+    throw "error: couldn't get ips"
+  }
+
+  // forwarded by CL. (else rewrite the header)
+  const cl = req.headers['x-forwarded-for']
+  const clIP = cl instanceof Array ? cl[0] : typeof cl === 'string' ? cl : '127.0.0.1'
+      
+
+  for (let i = 0; i < ips.length; i++) {
+    const element = ips[i];
+    if (element.Address === clIP)
+     { 
+       return true
+     }
+  }
+  return false
+
+}
 export function constTime<T>(debugName: string = 'func') {
   let fixedTime = 1; // how long to sleep, auto gets bumped as required;
 
@@ -133,6 +166,14 @@ export function cachedData<T>(debugName: string = 'func', ms: number) {
     });
   };
 }
+
+
+// not sure how exploitable this is, force x-forwarded-for to be true?
+// TODO, think it should work fine by taking the first if array 
+// If an X-Forwarded-For header was already present in the request to Cloudflare, Cloudflare appends the IP address of the HTTP proxy to the header:
+
+// Example: X-Forwarded-For: 203.0.113.1,198.51.100.101,198.51.100.102 
+// In the examples above, 203.0.113.1 is the original visitor IP address and 198.51.100.101 and 198.51.100.102 are proxy server IP addresses provided to Cloudflare via the X-Forwarded-For header.
 
 export function DataLimiter<T>(debugName: string = 'func', maxCount: number, timeBetween: number) {
   let requests: { [key: string]: number }[] = [];

@@ -15,7 +15,7 @@ import getClaimableByInputOwner from './get-claimable-by-input-owner';
 import { getLightningData } from './get-lightning-data';
 import getEstimateCustomFee from './estimate-custom-fee';
 import ackCustodianInfo from './ack-custodian-info';
-import { constTime, cachedData, DataLimiter } from '../db/util';
+import { constTime, cachedData, DataLimiter, ipCheckConst } from '../db/util';
 import getDynamicFees from './get-dynamic-fees';
 
 // Constant timing here is really lazy and may influence performance/response times a lot. better to move it directly onto the operations themselves.
@@ -68,6 +68,8 @@ export default async function runner(req: http.IncomingMessage, res: http.Server
     return ackCustodianInfoConstTime(() => {
       return ackCustodianInfo(url);
     });
+  } else if (url.startsWith('/tor-check')) { 
+    return ipCheckConst(req)
   }
 
   if (req.method === 'POST') {
